@@ -633,6 +633,88 @@
                 <div id="orders-wrap"><p class="loading-msg">Loading orders…</p></div>
             </div>
 
+
+            <div class="section hidden" id="section-categories">
+    <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+        <h2 class="text-xl tracking-wider text-white/90">Category Matrix</h2>
+        <button class="bg-white text-black px-6 py-2 text-sm font-semibold uppercase tracking-widest hover:bg-white/80 transition-all" onclick="openCategoryModal()">New Category</button>
+    </div>
+    <div class="tbl-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sort Order</th>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="category-table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal" id="product-modal">
+    <div class="modal-box w-full max-w-3xl border border-white/10 bg-[#0a0a0a] shadow-2xl">
+        <h3 class="text-lg tracking-widest mb-6" id="product-modal-title">NEW ITEM</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase text-white/50 mb-1">Item Name</label>
+                    <input type="text" id="p-name" class="w-full bg-black border border-white/10 p-3 text-white focus:border-white/40 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-white/50 mb-1">Category</label>
+                    <select id="p-category" class="w-full bg-black border border-white/10 p-3 text-white focus:border-white/40 transition-colors">
+                        </select>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-white/50 mb-1">Description</label>
+                    <textarea id="p-desc" rows="4" class="w-full bg-black border border-white/10 p-3 text-white focus:border-white/40 transition-colors"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase text-white/50 mb-1">Base Price</label>
+                        <input type="number" id="p-price" step="0.01" class="w-full bg-black border border-white/10 p-3 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase text-white/50 mb-1">Daily Stock</label>
+                        <input type="number" id="p-stock" class="w-full bg-black border border-white/10 p-3 text-white">
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs uppercase text-white/50 mb-1">Media (Up to 4)</label>
+                    <div id="image-dropzone" class="border-2 border-dashed border-white/10 p-6 text-center hover:border-white/30 transition-colors cursor-pointer text-sm text-white/40">
+                        Drag & Drop or Click to Upload
+                    </div>
+                    <div id="image-preview-container" class="grid grid-cols-4 gap-2 mt-2"></div>
+                    <input type="hidden" id="p-image-1"><input type="hidden" id="p-image-2">
+                    <input type="hidden" id="p-image-3"><input type="hidden" id="p-image-4">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs uppercase text-white/50">Variants / Flavors</label>
+                        <button type="button" id="add-variant-btn" class="text-xs text-white/70 hover:text-white">+ Add</button>
+                    </div>
+                    <div id="variants-container" class="space-y-2">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-4 mt-8 pt-4 border-t border-white/10">
+            <button class="px-6 py-2 text-sm text-white/50 hover:text-white" onclick="closeProductModal()">Cancel</button>
+            <button class="bg-white text-black px-6 py-2 text-sm font-semibold uppercase hover:bg-gray-200" id="save-product-btn">Commit Changes</button>
+        </div>
+    </div>
+</div>
+
             <!-- ── ANALYTICS ── -->
             <div class="section" id="section-analytics">
                 <div id="analytics-wrap"><p class="loading-msg">Loading analytics…</p></div>
