@@ -1,14 +1,22 @@
 /**
- * SAMY CLOUD BAKERY — api.js
+ * SAMY CLOUD BAKERY — api.js (v2)
  * ─────────────────────────────────────────────────────────────
  * Central API module. Supabase + Cloudinary + order system.
  * Config fetched from /api/config (Vercel serverless).
  *
- * Supabase tables needed:
- *   menu_items   — id, name, category, subcategory, description, price, available, image_url, daily_stock
- *   orders       — id, name, email, phone, delivery_type, address, notes, total, status, created_at
- *   order_items  — id, order_id, item_id, item_name, price, qty
- *   reviews      — id, rating, message, created_at
+ * ORDER STATUS FLOW:
+ *   pending → in_making → delivered (or cancelled at any stage)
+ *
+ * Supabase tables:
+ *   categories          — id, name, slug, sort_order
+ *   menu_items          — id, name, category_id, category, subcategory,
+ *                         description, price, available, image_url, daily_stock
+ *   menu_item_images    — id, item_id, url, sort_order
+ *   menu_item_variants  — id, item_id, name, price_mod, available, sort_order
+ *   orders              — id, name, email, phone, delivery_type, address,
+ *                         notes, total, status, cancel_reason, created_at
+ *   order_items         — id, order_id, item_id, item_name, variant, price, qty
+ *   reviews             — id, rating, message, created_at
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -31,8 +39,8 @@ export async function getConfig() {
 // ─── SUPABASE CLIENT ─────────────────────────────────────────
 const sb = {
   async _req(path, options = {}) {
-    const cfg    = await getConfig();
-    const token  = this._getToken();
+    const cfg     = await getConfig();
+    const token   = this._getToken();
     const authKey = token || cfg.supabaseAnonKey;
 
     const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
@@ -49,7 +57,7 @@ const sb = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Supabase error ${res.status}`);
+      throw new Error(err.message || err.error || `Supabase error ${res.status}: ${res.statusText}`);
     }
     return res.status === 204 ? null : res.json();
   },
@@ -58,13 +66,15 @@ const sb = {
     try {
       const keys = Object.keys(localStorage).filter(k => k.endsWith('-auth-token'));
       if (!keys.length) return null;
-      return JSON.parse(localStorage.getItem(keys[0]))?.access_token || null;
+      const stored = JSON.parse(localStorage.getItem(keys[0]));
+      // Handle both token formats
+      return stored?.access_token || stored?.session?.access_token || null;
     } catch { return null; }
   },
 
   query(path, options = {})     { return this._req(path, options); },
   authQuery(path, options = {}) {
-    if (!this._getToken()) throw new Error('Not authenticated');
+    if (!this._getToken()) throw new Error('Not authenticated. Please sign in again.');
     return this._req(path, options);
   },
 };
@@ -99,26 +109,69 @@ function detectHoneypot(formEl) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// PUBLIC — CATEGORIES
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * loadCategories()
+ * Returns all categories sorted by sort_order.
+ */
+export async function loadCategories() {
+  try {
+    return await sb.query('categories?order=sort_order.asc,name.asc') || [];
+  } catch (err) {
+    console.error('[loadCategories]', err);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // PUBLIC — MENU
 // ─────────────────────────────────────────────────────────────
 
 /**
  * loadMenu()
- * Returns items grouped by category, only where available=true.
+ * Returns items with images and variants, only where available=true.
+ * Items keyed by category slug for backward compat + by category_id.
  */
 export async function loadMenu() {
   try {
-    const items = await sb.query('menu_items?available=eq.true&order=category,name');
-    const grouped = { starters: [], mains: [], desserts: [], drinks: [] };
-    (items || []).forEach(item => {
-      const cat = item.category?.toLowerCase();
-      if (grouped[cat]) grouped[cat].push(item);
-      else grouped[cat] = [item];
+    const [items, images, variants, cats] = await Promise.all([
+      sb.query('menu_items?available=eq.true&order=category,name'),
+      sb.query('menu_item_images?order=item_id,sort_order.asc'),
+      sb.query('menu_item_variants?available=eq.true&order=item_id,sort_order.asc'),
+      sb.query('categories?order=sort_order.asc'),
+    ]);
+
+    // Index images and variants by item_id
+    const imageMap   = {};
+    const variantMap = {};
+    (images   || []).forEach(img => { (imageMap[img.item_id]   ||= []).push(img); });
+    (variants || []).forEach(v   => { (variantMap[v.item_id]   ||= []).push(v); });
+
+    // Build a slug → name map from categories
+    const catMap = {};
+    (cats || []).forEach(c => { catMap[c.id] = c; });
+
+    const enriched = (items || []).map(item => ({
+      ...item,
+      images:   imageMap[item.id]   || [],
+      variants: variantMap[item.id] || [],
+      categoryName: item.category_id ? (catMap[item.category_id]?.name || item.category) : item.category,
+      categorySlug: item.category_id ? (catMap[item.category_id]?.slug || item.category) : item.category,
+    }));
+
+    // Group by category slug
+    const grouped = {};
+    enriched.forEach(item => {
+      const key = item.categorySlug || item.category || 'other';
+      (grouped[key] ||= []).push(item);
     });
-    return grouped;
+
+    return { items: enriched, grouped, categories: cats || [] };
   } catch (err) {
     console.error('[loadMenu]', err);
-    return { starters: [], mains: [], desserts: [], drinks: [] };
+    return { items: [], grouped: {}, categories: [] };
   }
 }
 
@@ -128,7 +181,7 @@ export async function loadMenu() {
 
 /**
  * submitOrder()
- * Places an order. Decrements daily_stock for each item.
+ * Places an order. Status starts as 'pending'.
  * Returns { ok, order, ticketId }
  */
 export async function submitOrder(formEl, data) {
@@ -161,7 +214,7 @@ export async function submitOrder(formEl, data) {
         notes: sanitize(notes || '', 500),
         items,
         total,
-        status: 'confirmed',
+        status: 'pending',
       }),
     });
     if (apiRes.ok) {
@@ -180,7 +233,7 @@ export async function submitOrder(formEl, data) {
         address:       sanitize(address || '', 300),
         notes:         sanitize(notes || '', 500),
         total:         parseFloat(total) || 0,
-        status:        'confirmed',
+        status:        'pending',
       };
 
       const rows = await sb.query('orders', {
@@ -194,8 +247,9 @@ export async function submitOrder(formEl, data) {
       if (order?.id && items?.length) {
         const orderItems = items.map(i => ({
           order_id:  order.id,
-          item_id:   i.id,
+          item_id:   i.id || null,
           item_name: sanitize(i.name, 100),
+          variant:   sanitize(i.variant || '', 100),
           price:     parseFloat(i.price) || 0,
           qty:       parseInt(i.qty) || 1,
         }));
@@ -235,7 +289,6 @@ export async function submitOrder(formEl, data) {
  */
 async function decrementStock(itemId, qty = 1) {
   try {
-    // Fetch current stock
     const rows = await sb.query(`menu_items?id=eq.${itemId}&select=daily_stock`);
     const item = Array.isArray(rows) ? rows[0] : rows;
     if (!item || item.daily_stock === null || item.daily_stock === undefined) return;
@@ -251,7 +304,7 @@ async function decrementStock(itemId, qty = 1) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// PUBLIC — NEWSLETTER (kept for compatibility)
+// PUBLIC — NEWSLETTER
 // ─────────────────────────────────────────────────────────────
 
 export async function submitNewsletter(formEl, email) {
@@ -315,7 +368,8 @@ export async function adminLogin(email, password) {
       body:    JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error_description || data.msg || 'Login failed');
+    if (!res.ok) throw new Error(data.error_description || data.msg || 'Login failed. Check your credentials.');
+    // Store with the correct key format
     const host = new URL(cfg.supabaseUrl).hostname.split('.')[0];
     localStorage.setItem(`sb-${host}-auth-token`, JSON.stringify(data));
     return { ok: true, user: data.user };
@@ -328,6 +382,44 @@ export function adminLogout() {
   Object.keys(localStorage)
     .filter(k => k.endsWith('-auth-token'))
     .forEach(k => localStorage.removeItem(k));
+}
+
+export function adminIsLoggedIn() {
+  return !!sb._getToken();
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN — CATEGORIES
+// ─────────────────────────────────────────────────────────────
+
+export async function adminFetchCategories() {
+  return sb.authQuery('categories?order=sort_order.asc,name.asc') || [];
+}
+
+export async function adminCreateCategory(data) {
+  const payload = {
+    name:       sanitize(data.name, 80),
+    slug:       sanitize(data.slug || slugify(data.name), 80),
+    sort_order: parseInt(data.sort_order) || 0,
+  };
+  return sb.authQuery('categories', { method: 'POST', body: payload, prefer: 'return=representation' });
+}
+
+export async function adminUpdateCategory(id, data) {
+  const payload = {
+    name:       sanitize(data.name, 80),
+    slug:       sanitize(data.slug || slugify(data.name), 80),
+    sort_order: parseInt(data.sort_order) || 0,
+  };
+  return sb.authQuery(`categories?id=eq.${id}`, { method: 'PATCH', body: payload, prefer: 'return=representation' });
+}
+
+export async function adminDeleteCategory(id) {
+  return sb.authQuery(`categories?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+}
+
+function slugify(str) {
+  return (str || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 80);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -366,30 +458,102 @@ export async function adminFetchAnalytics() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ADMIN — MENU
+// ADMIN — MENU ITEMS
 // ─────────────────────────────────────────────────────────────
 
 export async function adminFetchMenuItems() {
-  return sb.authQuery('menu_items?order=category,name');
+  const [items, images, variants] = await Promise.all([
+    sb.authQuery('menu_items?order=category,name'),
+    sb.authQuery('menu_item_images?order=item_id,sort_order.asc').catch(() => []),
+    sb.authQuery('menu_item_variants?order=item_id,sort_order.asc').catch(() => []),
+  ]);
+
+  const imageMap   = {};
+  const variantMap = {};
+  (images   || []).forEach(img => { (imageMap[img.item_id]   ||= []).push(img); });
+  (variants || []).forEach(v   => { (variantMap[v.item_id]   ||= []).push(v); });
+
+  return (items || []).map(item => ({
+    ...item,
+    images:   imageMap[item.id]   || [],
+    variants: variantMap[item.id] || [],
+  }));
 }
 
 export async function adminUpdateMenu(item) {
   const payload = {
     name:        sanitize(item.name, 100),
     category:    sanitize(item.category, 50),
+    category_id: item.category_id || null,
     subcategory: sanitize(item.subcategory || '', 60),
     description: sanitize(item.description || '', 500),
     price:       parseFloat(item.price),
     available:   Boolean(item.available),
+    image_url:   item.image_url ? sanitize(item.image_url, 500) : null,
   };
-  if (item.image_url !== undefined) payload.image_url = sanitize(item.image_url || '', 500);
 
+  let savedItem;
   if (item.id) {
-    return sb.authQuery(`menu_items?id=eq.${item.id}`, {
+    const rows = await sb.authQuery(`menu_items?id=eq.${item.id}`, {
       method: 'PATCH', body: payload, prefer: 'return=representation',
     });
+    savedItem = Array.isArray(rows) ? rows[0] : rows;
+  } else {
+    const rows = await sb.authQuery('menu_items', {
+      method: 'POST', body: payload, prefer: 'return=representation',
+    });
+    savedItem = Array.isArray(rows) ? rows[0] : rows;
   }
-  return sb.authQuery('menu_items', { method: 'POST', body: payload, prefer: 'return=representation' });
+
+  if (!savedItem?.id) throw new Error('Failed to save menu item.');
+
+  const itemId = savedItem.id;
+
+  // ── Images ──
+  if (item.images !== undefined) {
+    // Delete existing then re-insert
+    await sb.authQuery(`menu_item_images?item_id=eq.${itemId}`, {
+      method: 'DELETE', prefer: 'return=minimal',
+    }).catch(() => {});
+
+    const validImages = (item.images || []).filter(Boolean).slice(0, 4);
+    if (validImages.length) {
+      await sb.authQuery('menu_item_images', {
+        method: 'POST',
+        body: validImages.map((url, i) => ({
+          item_id:    itemId,
+          url:        sanitize(url, 500),
+          sort_order: i,
+        })),
+        prefer: 'return=minimal',
+      }).catch(err => console.warn('[images insert]', err));
+    }
+  }
+
+  // ── Variants ──
+  if (item.variants !== undefined) {
+    // Delete existing then re-insert
+    await sb.authQuery(`menu_item_variants?item_id=eq.${itemId}`, {
+      method: 'DELETE', prefer: 'return=minimal',
+    }).catch(() => {});
+
+    const validVariants = (item.variants || []).filter(v => v?.name?.trim());
+    if (validVariants.length) {
+      await sb.authQuery('menu_item_variants', {
+        method: 'POST',
+        body: validVariants.map((v, i) => ({
+          item_id:    itemId,
+          name:       sanitize(v.name, 100),
+          price_mod:  parseFloat(v.price_mod) || 0,
+          available:  v.available !== false,
+          sort_order: i,
+        })),
+        prefer: 'return=minimal',
+      }).catch(err => console.warn('[variants insert]', err));
+    }
+  }
+
+  return savedItem;
 }
 
 export async function adminDeleteMenuItem(id) {
@@ -413,10 +577,12 @@ export async function adminSetDailyStock(itemId, stock) {
 
 /**
  * adminResetAllStock()
- * Resets all menu items' daily_stock to a given value.
+ * Resets ALL menu items' daily_stock to a given value.
+ * Supabase requires a filter for PATCH — we use available IN (true, false).
  */
 export async function adminResetAllStock(defaultStock) {
-  return sb.authQuery('menu_items', {
+  // "available=in.(true,false)" matches every row regardless of availability
+  return sb.authQuery('menu_items?available=in.(true,false)', {
     method: 'PATCH',
     body:   { daily_stock: defaultStock },
     prefer: 'return=minimal',
@@ -440,7 +606,7 @@ export async function sendCustomerEmail(order, updateType, reason = '') {
     const res = await fetch('/api/notify', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ order, updateType, reason }),
+      body:    JSON.stringify({ reservation: order, updateType, reason }),
     });
     if (!res.ok) throw new Error('Notify endpoint error');
     return { ok: true };
