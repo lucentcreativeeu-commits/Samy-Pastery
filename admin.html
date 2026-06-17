@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMY — Admin Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;700&display=swap');
+
+        :root {
+            --red: #e52525;
+            --red-dim: rgba(229,37,37,0.12);
+            --red-border: rgba(229,37,37,0.25);
+            --glass: rgba(8,8,8,0.95);
+            --glass-light: rgba(15,15,15,0.9);
+            --border: rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.14);
+            --text-muted: rgba(255,255,255,0.35);
+            --text-dim: rgba(255,255,255,0.55);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #030303;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1,h2,h3,.oswald { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+
+        /* ── GLASS ── */
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        /* ──────────────────────────────────────
+           LOGIN SCREEN
+        ────────────────────────────────────── */
+        #login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 50% 0%, rgba(229,37,37,0.06) 0%, transparent 60%);
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            padding: 3rem 2.5rem;
+            border-radius: 20px;
+        }
+
+        .login-logo {
+            font-size: 2.2rem;
+            letter-spacing: 0.3em;
+            color: var(--red);
+            text-align: center;
+            margin-bottom: 0.3rem;
+        }
+        .login-sub {
+            text-align: center;
+            font-size: 0.7rem;
+            letter-spacing: 0.35em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 2.5rem;
+        }
+
+        .field-label {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .s-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        .s-input:focus { border-color: var(--red); }
+        .s-input::placeholder { color: rgba(255,255,255,0.2); }
+        .s-input option { background: #111; }
+        textarea.s-input { resize: vertical; }
+
+        .btn-red {
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.85rem 1.5rem;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .btn-red:hover { background: white; color: black; }
+        .btn-red:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1.2rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+        }
+        .btn-ghost:hover { border-color: var(--border-hover); color: white; }
+        .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .form-error { color: #ef9a9a; font-size: 0.78rem; min-height: 1.2em; margin-top: 0.5rem; }
+
+        .pw-strength-track { height: 2px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 0.5rem; }
+        .pw-strength-bar   { height: 100%; width: 0; border-radius: 2px; transition: all 0.3s; }
+
+        .otp-grid { display: flex; gap: 0.5rem; justify-content: center; margin: 1rem 0; }
+        .otp-digit {
+            width: 46px; height: 52px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.2rem;
+            color: white;
+            font-family: 'Oswald', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .otp-digit:focus { border-color: var(--red); }
+
+        .forgot-link { font-size: 0.72rem; color: var(--text-muted); cursor: pointer; text-align: center; display: block; margin-top: 1rem; }
+        .forgot-link:hover { color: white; }
+
+        /* ──────────────────────────────────────
+           DASHBOARD LAYOUT
+        ────────────────────────────────────── */
+        #dashboard {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .admin-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: #060606;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 40;
+            overflow-y: auto;
+        }
+
+        .sidebar-brand {
+            padding: 1.8rem 1.5rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-brand .brand-name {
+            font-size: 1.2rem;
+            letter-spacing: 0.3em;
+            color: var(--red);
+            font-family: 'Oswald', sans-serif;
+        }
+        .sidebar-brand .brand-sub {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 0.2rem;
+        }
+
+        .sidebar-nav { padding: 1.2rem 0.8rem; flex: 1; }
+
+        .nav-section-label {
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.2);
+            text-transform: uppercase;
+            padding: 0 0.7rem;
+            margin: 1.2rem 0 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.1rem;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.04); color: white; }
+        .nav-item.active { background: var(--red-dim); color: white; border: 1px solid var(--red-border); }
+        .nav-item.active .nav-icon { color: var(--red); }
+
+        .nav-icon { font-size: 0.85rem; width: 18px; text-align: center; color: rgba(255,255,255,0.3); }
+
+        .sidebar-footer {
+            padding: 1rem 0.8rem 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .session-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 0.8rem;
+        }
+        .session-dot { width: 6px; height: 6px; border-radius: 50%; background: #66bb6a; animation: pulse 2s infinite; }
+        .session-dot.warning { background: #ffa726; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .session-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.1em; }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid rgba(229,37,37,0.15);
+            color: rgba(229,37,37,0.6);
+            font-size: 0.75rem;
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            transition: all 0.2s ease;
+        }
+        .logout-btn:hover { background: rgba(229,37,37,0.08); color: var(--red); border-color: var(--red-border); }
+
+        /* ── MAIN CONTENT ── */
+        .main-content {
+            margin-left: 240px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .main-header {
+            padding: 1.8rem 2.5rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: #060606;
+            position: sticky; top: 0; z-index: 30;
+        }
+        .page-title { font-size: 1.6rem; letter-spacing: 0.15em; color: white; }
+        .page-sub   { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 0.25rem; }
+
+        /* ── SECTIONS ── */
+        .section { display: none; padding: 2rem 2.5rem; }
+        .section.active { display: block; }
+
+        /* ── TABLE ── */
+        .tbl-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        thead th {
+            padding: 0.9rem 1rem;
+            text-align: left;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            background: rgba(255,255,255,0.02);
+        }
+        tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        td { padding: 0.9rem 1rem; color: var(--text-dim); vertical-align: middle; }
+        td.td-name { color: white; font-weight: 500; }
+        td.td-wide { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* ── TABLE BUTTONS ── */
+        .tb {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            margin: 0 0.15rem;
+        }
+        .tb.view   { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--text-dim); }
+        .tb.view:hover  { background: rgba(255,255,255,0.09); color: white; }
+        .tb.ok     { background: rgba(102,187,106,0.1); border-color: rgba(102,187,106,0.25); color: #a5d6a7; }
+        .tb.ok:hover    { background: rgba(102,187,106,0.2); }
+        .tb.warn   { background: rgba(255,167,38,0.1); border-color: rgba(255,167,38,0.25); color: #ffcc80; }
+        .tb.warn:hover  { background: rgba(255,167,38,0.2); }
+        .tb.danger { background: rgba(229,37,37,0.1); border-color: var(--red-border); color: #ef9a9a; }
+        .tb.danger:hover{ background: rgba(229,37,37,0.18); }
+        .tb.edit   { background: rgba(66,165,245,0.1); border-color: rgba(66,165,245,0.25); color: #90caf9; }
+        .tb.edit:hover  { background: rgba(66,165,245,0.2); }
+        .tb:disabled    { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── STATUS BADGES ── */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 50px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .badge-confirmed { background: rgba(102,187,106,0.12); color: #a5d6a7; border: 1px solid rgba(102,187,106,0.25); }
+        .badge-pending   { background: rgba(255,167,38,0.12); color: #ffcc80; border: 1px solid rgba(255,167,38,0.25); }
+        .badge-cancelled { background: rgba(229,57,53,0.12); color: #ef9a9a; border: 1px solid rgba(229,57,53,0.25); }
+        .badge-fulfilled { background: rgba(66,165,245,0.12); color: #90caf9; border: 1px solid rgba(66,165,245,0.25); }
+        .badge-preparing { background: rgba(171,71,188,0.12); color: #ce93d8; border: 1px solid rgba(171,71,188,0.25); }
+
+        /* ── FILTERS ── */
+        .filter-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .filter-pill {
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            background: transparent;
+            transition: all 0.2s ease;
+        }
+        .filter-pill:hover { border-color: var(--border-hover); color: white; }
+        .filter-pill.active { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+        /* ── DETAIL PANEL ── */
+        .detail-panel {
+            background: rgba(12,12,12,0.98);
+            border: 1px solid rgba(229,37,37,0.2);
+            border-radius: 14px;
+            padding: 1.8rem;
+            margin-bottom: 1.5rem;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin: 1rem 0; }
+        .detail-field label { display: block; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.3rem; }
+        .detail-field span  { font-size: 0.88rem; color: white; }
+
+        /* ── ORDER ITEMS TABLE (in detail) ── */
+        .order-items-mini { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0.8rem 0; }
+        .order-items-mini table { font-size: 0.78rem; }
+
+        /* ── FORM PANEL ── */
+        .form-panel {
+            background: rgba(12,12,12,0.98);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .form-panel h3 { font-size: 1rem; letter-spacing: 0.2em; margin-bottom: 1.5rem; color: var(--text-dim); }
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width:640px) { .form-grid-2 { grid-template-columns: 1fr; } }
+
+        /* ── ANALYTICS ── */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .kpi-card {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .kpi-value { font-family: 'Oswald', sans-serif; font-size: 2rem; color: white; }
+        .kpi-label { font-size: 0.65rem; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-top: 0.25rem; }
+
+        .chart-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+        .chart-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 1.2rem; }
+        .bar-chart { display: flex; align-items: flex-end; gap: 0.4rem; height: 100px; }
+        .bar-col   { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 0.3rem; }
+        .bar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+        .bar-fill  { width: 100%; background: rgba(229,37,37,0.4); border-radius: 3px 3px 0 0; transition: height 0.5s ease; min-height: 2px; }
+        .bar-fill.accent { background: rgba(229,37,37,0.7); }
+        .bar-label { font-size: 0.6rem; color: var(--text-muted); }
+        .bar-label.peak { color: var(--red); font-weight: 700; }
+        .bar-count { font-size: 0.65rem; color: var(--text-muted); }
+        .chart-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.8rem; }
+        strong.accent { color: white; }
+
+        /* ── STOCK CONTROLS ── */
+        .stock-ctrl { display: flex; align-items: center; gap: 0.4rem; }
+        .stock-input { width: 60px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.5rem; color: white; font-size: 0.8rem; text-align: center; outline: none; }
+        .stock-input:focus { border-color: var(--red); }
+        .stock-save-btn { padding: 0.3rem 0.6rem; border-radius: 6px; background: var(--red-dim); border: 1px solid var(--red-border); color: #ef9a9a; font-size: 0.65rem; cursor: pointer; letter-spacing: 0.1em; }
+        .stock-save-btn:hover { background: rgba(229,37,37,0.2); }
+
+        /* ── MODAL ── */
+        .modal {
+            position: fixed; inset: 0; z-index: 80;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal.open { opacity: 1; pointer-events: all; }
+        .modal-box {
+            background: #0c0c0c;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 460px; width: 100%;
+        }
+        .modal-box h3 { font-size: 1.1rem; letter-spacing: 0.2em; margin-bottom: 1.5rem; }
+        .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 1.5rem; }
+
+        /* ── TOAST ── */
+        .admin-toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 99;
+            background: #111; border: 1px solid var(--border);
+            border-radius: 10px; padding: 0.8rem 1.2rem;
+            font-size: 0.8rem; color: rgba(255,255,255,0.8);
+            opacity: 0; pointer-events: none;
+            transition: all 0.3s ease;
+            transform: translateY(10px);
+            max-width: 300px;
+        }
+        .admin-toast.show { opacity: 1; transform: none; }
+        .admin-toast.error { border-color: var(--red-border); color: #ef9a9a; }
+        .admin-toast.success { border-color: rgba(102,187,106,0.3); color: #a5d6a7; }
+
+        /* ── EMPTY STATE ── */
+        .empty { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 0.1em; }
+        .loading-msg { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 0.1em; }
+
+        /* ── MISC ── */
+        .must-update { color: #ffb74d; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; }
+        .ticket-code { font-size: 0.75rem; color: var(--red); letter-spacing: 0.1em; font-family: 'Oswald', monospace; }
+
+        .section-toolbar { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; }
+        .section-toolbar .spacer { flex: 1; }
+
+        .review-stars { color: var(--red); letter-spacing: 0.1em; }
+
+        .rating-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; font-size: 0.72rem; }
+        .rating-row-track { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+        .rating-row-fill  { height: 100%; background: var(--red); border-radius: 2px; }
+        .rating-row-label { width: 24px; text-align: right; color: var(--text-muted); }
+        .rating-row-count { width: 20px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<!-- ──────────────────────────────────────
+     LOGIN SCREEN
+────────────────────────────────────── -->
+<div id="login-screen">
+    <div class="login-box glass">
+        <p class="login-logo">SAMY</p>
+        <p class="login-sub">Cloud Bakery — Admin Lab</p>
+
+        <form id="login-form">
+            <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+            <div style="margin-bottom:1rem">
+                <label class="field-label">Email</label>
+                <input type="email" id="admin-email" class="s-input" required placeholder="admin@samybakery.com" autocomplete="email">
+            </div>
+            <div>
+                <label class="field-label">Password</label>
+                <input type="password" id="admin-password" class="s-input" required placeholder="••••••••" autocomplete="current-password">
+                <div id="pw-strength-wrap" style="display:none;margin-top:0.5rem">
+                    <div class="pw-strength-track"><div id="pw-strength-bar" class="pw-strength-bar"></div></div>
+                    <p id="pw-strength-label" style="font-size:0.65rem;color:var(--text-muted);margin-top:0.3rem"></p>
+                </div>
+            </div>
+            <p class="form-error" id="login-error" style="margin-top:0.8rem"></p>
+
+            <div id="two-fa-wrap" style="display:none;margin:1.2rem 0">
+                <p style="font-size:0.7rem;color:var(--text-muted);text-align:center;letter-spacing:0.12em;margin-bottom:0.8rem">ENTER 6-DIGIT AUTH CODE</p>
+                <div class="otp-grid" id="otp-inputs">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 1">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 2">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 3">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 4">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 5">
+                    <input type="text" maxlength="1" inputmode="numeric" class="otp-digit" aria-label="Digit 6">
+                </div>
+                <p class="form-error" id="otp-error" style="text-align:center"></p>
+            </div>
+
+            <button type="submit" class="btn-red" id="login-btn" style="margin-top:1.5rem">SIGN IN</button>
+            <a class="forgot-link" id="forgot-pw-link">Forgot password?</a>
+        </form>
+
+        <div id="forgot-pw-wrap" style="display:none;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.8rem">Enter your admin email for a reset link.</p>
+            <div style="display:flex;gap:0.6rem">
+                <input type="email" id="reset-email" class="s-input" placeholder="admin@samybakery.com" style="flex:1">
+                <button class="btn-ghost" id="send-reset-btn" style="white-space:nowrap">Send</button>
+            </div>
+            <p id="reset-msg" style="font-size:0.75rem;margin-top:0.5rem;min-height:1em"></p>
+        </div>
+    </div>
+</div>
+
+<!-- ──────────────────────────────────────
+     DASHBOARD
+────────────────────────────────────── -->
+<div id="dashboard">
+    <div class="admin-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-name">SAMY</div>
+                <div class="brand-sub">Admin Lab</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Operations</div>
+                <button class="nav-item active" data-section="orders">
+                    <span class="nav-icon">◈</span> Orders
+                </button>
+                <button class="nav-item" data-section="analytics">
+                    <span class="nav-icon">◉</span> Analytics
+                </button>
+
+                <div class="nav-section-label">Catalog</div>
+                <button class="nav-item" data-section="menu">
+                    <span class="nav-icon">◇</span> Menu Manager
+                </button>
+                <button class="nav-item" data-section="stock">
+                    <span class="nav-icon">◻</span> Daily Stock
+                </button>
+
+                <div class="nav-section-label">More</div>
+                <button class="nav-item" data-section="reviews">
+                    <span class="nav-icon">★</span> Reviews
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="session-pill">
+                    <div class="session-dot" id="session-dot"></div>
+                    <span class="session-label" id="session-label">Session active</span>
+                </div>
+                <button class="logout-btn" id="logout-btn">
+                    <span>↩</span> Sign Out
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main-content">
+            <header class="main-header">
+                <div>
+                    <h2 class="page-title oswald" id="page-title">ORDERS</h2>
+                    <p class="page-sub" id="page-sub">Manage customer orders and allocations</p>
+                </div>
+                <div id="header-actions"></div>
+            </header>
+
+            <!-- ── ORDERS ── -->
+            <div class="section active" id="section-orders">
+                <div class="filter-row" id="order-filters">
+                    <button class="filter-pill active" data-filter="all">All</button>
+                    <button class="filter-pill" data-filter="confirmed">Confirmed</button>
+                    <button class="filter-pill" data-filter="preparing">Preparing</button>
+                    <button class="filter-pill" data-filter="fulfilled">Fulfilled</button>
+                    <button class="filter-pill" data-filter="cancelled">Cancelled</button>
+                </div>
+                <div id="order-detail-slot"></div>
+                <div id="orders-wrap"><p class="loading-msg">Loading orders…</p></div>
+            </div>
+
+            <!-- ── ANALYTICS ── -->
+            <div class="section" id="section-analytics">
+                <div id="analytics-wrap"><p class="loading-msg">Loading analytics…</p></div>
+            </div>
+
+            <!-- ── MENU MANAGER ── -->
+            <div class="section" id="section-menu">
+                <div class="section-toolbar">
+                    <button class="btn-red" id="add-item-btn" style="width:auto;padding:0.65rem 1.2rem;font-size:0.72rem">+ ADD ITEM</button>
+                </div>
+
+                <div id="menu-form-panel" class="form-panel" style="display:none">
+                    <h3 id="menu-form-title">ADD MENU ITEM</h3>
+                    <form id="menu-item-form">
+                        <div class="form-grid-2" style="margin-bottom:1rem">
+                            <div>
+                                <label class="field-label">Name *</label>
+                                <input type="text" id="mi-name" class="s-input" required maxlength="100">
+                            </div>
+                            <div>
+                                <label class="field-label">Category *</label>
+                                <select id="mi-category" class="s-input" required>
+                                    <option value="starters">Starters</option>
+                                    <option value="mains">Mains</option>
+                                    <option value="desserts">Desserts</option>
+                                    <option value="drinks">Drinks</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Subcategory</label>
+                                <input type="text" id="mi-subcategory" class="s-input" placeholder="e.g. Signature, Seasonal" maxlength="60">
+                            </div>
+                            <div>
+                                <label class="field-label">Price ($) *</label>
+                                <input type="number" id="mi-price" class="s-input" required min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="field-label">Available</label>
+                                <select id="mi-available" class="s-input">
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Image URL (optional)</label>
+                                <input type="url" id="mi-image" class="s-input" placeholder="https://…">
+                            </div>
+                        </div>
+                        <div style="margin-bottom:1rem">
+                            <label class="field-label">Description</label>
+                            <textarea id="mi-description" class="s-input" rows="2" maxlength="500"></textarea>
+                        </div>
+                        <input type="hidden" id="mi-id">
+                        <div style="display:flex;gap:0.8rem;justify-content:flex-end">
+                            <button type="button" class="btn-ghost" id="cancel-menu-form">Cancel</button>
+                            <button type="submit" class="btn-red" style="width:auto;padding:0.7rem 1.5rem;font-size:0.72rem">SAVE ITEM</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="menu-table-wrap"><p class="loading-msg">Loading menu…</p></div>
+            </div>
+
+            <!-- ── DAILY STOCK ── -->
+            <div class="section" id="section-stock">
+                <div style="margin-bottom:1.5rem">
+                    <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.7">
+                        Set how many units of each item are available for today. When a customer orders, the count decreases automatically. Set to 0 to mark as sold out. Leave blank for unlimited.
+                    </p>
+                </div>
+                <div id="stock-table-wrap"><p class="loading-msg">Loading stock…</p></div>
+            </div>
+
+            <!-- ── REVIEWS ── -->
+            <div class="section" id="section-reviews">
+                <div id="reviews-wrap"><p class="loading-msg">Loading reviews…</p></div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ── CANCEL ORDER MODAL ── -->
+<div class="modal" id="cancel-modal">
+    <div class="modal-box">
+        <h3>CANCEL ORDER</h3>
+        <div>
+            <label class="field-label">Reason for Cancellation</label>
+            <textarea id="cancel-reason" class="s-input" rows="3" placeholder="Reason sent to customer…" maxlength="400"></textarea>
+        </div>
+        <p class="form-error" id="cancel-error"></p>
+        <div class="modal-actions">
+            <button class="btn-ghost" id="cancel-modal-dismiss">Back</button>
+            <button class="btn-red" id="cancel-modal-confirm" style="background:rgba(229,37,37,0.15);color:#ef9a9a;border:1px solid rgba(229,37,37,0.3)">CONFIRM CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="admin-toast" id="admin-toast"></div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMY | Cloud Bakery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;700&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .display-font {
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+
+        .smooth-transition {
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .perspective-stage {
+            perspective: 2000px;
+            transform-style: preserve-3d;
+        }
+
+        .cake-layer, #cake-unified {
+            transform-style: preserve-3d;
+            will-change: transform, opacity, filter;
+        }
+
+        .callout-line {
+            position: absolute;
+            background: linear-gradient(90deg, #e52525 0%, rgba(255,255,255,0.15) 100%);
+            transform-origin: left center;
+            transform: scaleX(0);
+            will-change: transform;
+        }
+        .callout-line.reverse {
+            background: linear-gradient(270deg, #e52525 0%, rgba(255,255,255,0.15) 100%);
+            transform-origin: right center;
+        }
+
+        .callout-dot {
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            background: #e52525;
+            border-radius: 50%;
+            box-shadow: 0 0 14px #e52525;
+            transform: scale(0);
+            will-change: transform;
+        }
+
+        #optical-flare {
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.6) 20%, rgba(229,37,37,0.15) 50%, rgba(0,0,0,0) 80%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#e52525] selection:text-white">
+
+    <nav class="fixed top-0 w-full z-50 p-4">
+        <div class="glass-panel max-w-7xl mx-auto rounded-full px-8 py-4 flex justify-between items-center">
+            <div class="text-xl font-bold tracking-wider flex items-center space-x-2">
+                <span class="text-[#e52525]">SAMY</span>
+                <span class="text-white/30 text-xs font-normal tracking-[0.2em]">| CLOUD BAKERY</span>
+            </div>
+            <ul class="hidden md:flex space-x-10 text-xs font-medium tracking-[0.15em] text-white/60">
+                <li class="text-white smooth-transition cursor-pointer"><a href="index.html">HOME</a></li>
+                <li class="hover:text-white smooth-transition cursor-pointer"><a href="menu.html">DESSERTS</a></li>
+                <li class="hover:text-white smooth-transition cursor-pointer"><a href="contact.html">CONTACT</a></li>
+            </ul>
+            <div class="flex items-center space-x-6 text-xs font-medium tracking-widest">
+                <a href="admin.html" class="hover:text-[#e52525] smooth-transition text-white/80">ADMIN</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="h-screen flex flex-col justify-center items-center relative z-10 pt-20">
+        <div class="max-w-5xl mx-auto px-6 text-center">
+            <h1 class="text-7xl md:text-9xl font-bold leading-[0.85] tracking-tighter mb-8">
+                <span class="text-[#e52525] block">YOU TASTE</span>
+                <span class="text-[#e52525] block">BETTER</span>
+                <span class="text-white block">THAN THIS.</span>
+            </h1>
+            <p class="text-white/40 max-w-lg mx-auto text-sm uppercase tracking-[0.25em] animate-pulse">
+                Scroll to deconstruct perfection ↓
+            </p>
+        </div>
+    </section>
+
+    <!-- DECONSTRUCTION SECTION -->
+    <section id="deconstruction-section" class="h-screen w-full relative bg-[#050505] overflow-hidden flex items-center justify-center">
+        <div class="absolute top-8 left-0 w-full px-8 flex justify-between items-center z-40 text-[11px] font-semibold tracking-[0.2em] text-white/40 border-b border-white/5 pb-4">
+            <div class="flex items-center space-x-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#e52525] animate-ping"></span>
+                <span class="text-white" id="live-stock-ticker">BATCH STATUS: LOADING TODAY'S DROP...</span>
+            </div>
+            <div class="text-[#e52525] font-bold tracking-widest">• LIVE TICKER</div>
+        </div>
+
+        <div class="absolute top-24 left-0 w-full text-center z-20 opacity-0 scale-95 pointer-events-none" id="anatomy-title">
+            <h2 class="text-5xl md:text-7xl font-bold tracking-tighter leading-none">
+                ANATOMY OF <br><span class="text-[#e52525]">OBSESSION.</span>
+            </h2>
+        </div>
+
+        <div class="perspective-stage relative w-full max-w-6xl h-[70vh] flex items-center justify-center">
+            <div id="cake-orbit-group" class="relative w-full h-full flex items-center justify-center">
+                <div id="optical-flare" class="absolute z-50 w-[500px] h-[500px] rounded-full opacity-0 scale-50 translate-y-10"></div>
+
+                <div class="absolute z-40 flex items-center justify-center pointer-events-none" id="cake-unified">
+                    <img src="./assets/fullpic.png" alt="Samy Signature Cheesecake" class="w-[300px] md:w-[380px] drop-shadow-[0_30px_60px_rgba(0,0,0,0.85)] object-contain">
+                </div>
+
+                <div class="absolute z-30 cake-layer flex items-center justify-center opacity-0" id="layer-top">
+                    <img src="./assets/top-crust.webp" alt="Charred Top Crust" class="w-[300px] md:w-[380px] drop-shadow-[0_30px_60px_rgba(0,0,0,0.85)] object-contain relative z-10">
+                    <div class="absolute top-1/4 left-1/2 ml-[160px] md:ml-[220px] flex items-center callout-container opacity-0 pointer-events-none z-50">
+                        <div class="callout-dot -left-1.5 top-1/2 -translate-y-1/2"></div>
+                        <div class="callout-line h-[1px] w-20 md:w-32 -left-20 md:-left-32 top-1/2"></div>
+                        <div class="glass-panel p-5 rounded-xl w-64 border-l-2 border-l-[#e52525] shadow-2xl">
+                            <p class="text-[10px] text-[#e52525] font-bold uppercase tracking-[0.2em] mb-1.5">Caramelized Crust</p>
+                            <p class="text-xs text-white/90 leading-relaxed font-normal">Precisely torched at 240°C to achieve a distinct bitter-sweet, rich obsidian shell.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute z-20 cake-layer flex items-center justify-center opacity-0" id="layer-mid">
+                    <img src="./assets/molten-core.webp" alt="Molten Core" class="w-[300px] md:w-[380px] drop-shadow-[0_30px_60px_rgba(0,0,0,0.9)] object-contain relative z-10">
+                    <div class="absolute top-1/2 right-1/2 mr-[160px] md:mr-[220px] flex items-center flex-row-reverse callout-container opacity-0 pointer-events-none z-50">
+                        <div class="callout-dot -right-1.5 top-1/2 -translate-y-1/2"></div>
+                        <div class="callout-line reverse h-[1px] w-20 md:w-32 -right-20 md:-right-32 top-1/2"></div>
+                        <div class="glass-panel p-5 rounded-xl w-64 text-right border-r-2 border-r-[#e52525] shadow-2xl">
+                            <p class="text-[10px] text-[#e52525] font-bold uppercase tracking-[0.2em] mb-1.5">Cream Cheese Core</p>
+                            <p class="text-xs text-white/90 leading-relaxed font-normal">A hyper-creamy, slow-baked center designed to flow smoothly upon slicing.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute z-10 cake-layer flex items-center justify-center opacity-0" id="layer-base">
+                    <img src="./assets/structured-base.webp" alt="Structured Base" class="w-[300px] md:w-[380px] drop-shadow-[0_30px_60px_rgba(0,0,0,0.95)] object-contain relative z-10">
+                    <div class="absolute bottom-1/4 left-1/2 ml-[160px] md:ml-[220px] flex items-center callout-container opacity-0 pointer-events-none z-50">
+                        <div class="callout-dot -left-1.5 top-1/2 -translate-y-1/2"></div>
+                        <div class="callout-line h-[1px] w-20 md:w-32 -left-20 md:-left-32 top-1/2"></div>
+                        <div class="glass-panel p-5 rounded-xl w-64 border-l-2 border-l-[#e52525] shadow-2xl">
+                            <p class="text-[10px] text-[#e52525] font-bold uppercase tracking-[0.2em] mb-1.5">Structured Biscuit Base</p>
+                            <p class="text-xs text-white/90 leading-relaxed font-normal">Buttery crumble compressed precisely to anchor the molten profile elegantly.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 translate-y-10 opacity-0" id="conversion-hook">
+            <a href="menu.html" class="inline-block bg-[#e52525] hover:bg-white hover:text-black text-white font-bold py-5 px-16 rounded-full tracking-[0.25em] text-xs smooth-transition shadow-[0_0_50px_rgba(229,37,37,0.4)] hover:shadow-[0_0_60px_rgba(255,255,255,0.2)] uppercase">
+                ORDER TODAY'S BATCH
+            </a>
+        </div>
+    </section>
+
+    <!-- SIGNATURE DROPS SECTION -->
+    <section class="py-24 px-6 max-w-7xl mx-auto bg-[#050505]">
+        <div class="text-center mb-16">
+            <p class="text-[#e52525] text-xs font-bold tracking-[0.3em] uppercase mb-3">// CURATED SELECTIONS</p>
+            <h2 class="text-4xl md:text-6xl font-bold tracking-tight">THE SIGNATURE DROPS</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div class="md:col-span-7 glass-panel rounded-3xl p-8 relative overflow-hidden group smooth-transition hover:border-[#e52525] hover:shadow-[0_0_40px_rgba(229,37,37,0.15)] flex flex-col justify-between h-[450px]">
+                <div class="absolute top-6 right-6 border border-[#e52525]/30 rounded-full px-3 py-1 text-[10px] text-[#e52525] tracking-widest uppercase bg-[#e52525]/10 font-medium">
+                    Limited Quantities
+                </div>
+                <div class="z-10 mt-auto">
+                    <p class="text-[#e52525] font-bold text-xs tracking-widest mb-2">COLLECTION 01</p>
+                    <h3 class="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-white">THE COOKIE BOX</h3>
+                    <p class="text-white/60 text-sm max-w-md font-light leading-relaxed">Six ultra-thick artisanal variants loaded with high-grade molten cores and a signature crispy edge geometry.</p>
+                    <a href="menu.html" class="mt-6 inline-block text-xs font-bold tracking-[0.2em] border-b border-white pb-1 hover:text-[#e52525] hover:border-[#e52525] smooth-transition uppercase">Explore Box Details →</a>
+                </div>
+                <div class="absolute -right-12 -bottom-12 w-80 h-80 bg-gradient-to-tr from-[#e52525]/10 to-transparent rounded-full blur-2xl group-hover:bg-[#e52525]/20 smooth-transition pointer-events-none"></div>
+            </div>
+
+            <div class="md:col-span-5 glass-panel rounded-3xl p-8 relative overflow-hidden group smooth-transition flex flex-col justify-between h-[450px]">
+                <div class="z-10">
+                    <p class="text-white/30 text-[10px] tracking-widest font-semibold uppercase mb-1">Sliding Box Experience</p>
+                    <h3 class="text-2xl font-bold tracking-tight text-white">UNBOXING PERFECTION</h3>
+                </div>
+                <div class="w-full h-48 bg-neutral-900/60 rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 z-10"></div>
+                    <span class="text-white/20 text-xs tracking-[0.3em] uppercase z-20 font-medium group-hover:text-white/60 smooth-transition">[ Luxury Packaging Display ]</span>
+                </div>
+                <div class="z-10">
+                    <p class="text-white/50 text-xs leading-relaxed font-light">Engineered minimalist luxury casing optimized to retain structural pastry warmth during express transit lines.</p>
+                </div>
+            </div>
+
+            <div class="md:col-span-5 glass-panel rounded-3xl p-8 relative overflow-hidden group smooth-transition flex flex-col justify-between h-[420px]">
+                <div class="z-10">
+                    <p class="text-[#e52525] font-bold text-[10px] tracking-widest uppercase mb-1">Individual Precision</p>
+                    <h3 class="text-2xl font-bold tracking-tight text-white">THE MINI CHEESECAKE</h3>
+                </div>
+                <div class="my-4 p-4 rounded-xl bg-neutral-950 border border-white/5 flex items-center justify-center">
+                    <div class="w-24 h-24 rounded-full border border-dashed border-white/10 flex items-center justify-center text-white/20 text-[10px] tracking-widest uppercase group-hover:border-[#e52525]/40 smooth-transition">
+                        Pure Profile
+                    </div>
+                </div>
+                <div>
+                    <p class="text-white/80 text-sm font-semibold mb-1">Premium Single Core</p>
+                    <p class="text-white/40 text-xs font-light">A meticulous 10cm personal adaptation of our legendary molten center recipe.</p>
+                </div>
+            </div>
+
+            <div class="md:col-span-7 glass-panel rounded-3xl p-8 relative overflow-hidden group smooth-transition hover:border-white/20 flex flex-col justify-between h-[420px]">
+                <div class="z-10 flex justify-between items-start">
+                    <div>
+                        <p class="text-white/30 text-[10px] tracking-widest font-semibold uppercase mb-1">Corporate & Event Fulfillment</p>
+                        <h3 class="text-3xl font-bold tracking-tight text-white">THE STACK SYSTEM</h3>
+                    </div>
+                    <span class="text-white/20 text-xs font-mono font-bold">BATCH B.09</span>
+                </div>
+                <p class="text-white/50 text-sm max-w-lg font-light leading-relaxed z-10">Secure seamless custom configuration stacks safely engineered for upscale gatherings, private events, and editorial greenrooms.</p>
+                <div class="flex space-x-3 z-10">
+                    <span class="text-[10px] text-white/40 border border-white/10 px-3 py-1 rounded-full uppercase tracking-wider bg-white/5">Air Flow Outlets</span>
+                    <span class="text-[10px] text-white/40 border border-white/10 px-3 py-1 rounded-full uppercase tracking-wider bg-white/5">Thermal Matte Exterior</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="h-[40vh] bg-[#090909] border-t border-white/5 flex flex-col items-center justify-center text-center px-6 mt-12">
+        <p class="text-white/20 text-xs tracking-[0.3em] uppercase mb-2">Exclusive Drops Only</p>
+        <p class="text-white/40 text-sm tracking-widest max-w-md font-light">Our cloud kitchen prepares limited quantities daily to guarantee molten precision.</p>
+        <div class="mt-6 flex gap-6 text-[10px] text-white/20 tracking-widest uppercase">
+            <a href="menu.html" class="hover:text-white/60 smooth-transition">Order</a>
+            <a href="contact.html" class="hover:text-white/60 smooth-transition">Contact</a>
+            <a href="admin.html" class="hover:text-white/60 smooth-transition">Admin</a>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { loadMenu } from './api.js';
+
+        // Load live stock count for ticker
+        async function updateTicker() {
+            try {
+                const menu = await loadMenu();
+                const allItems = Object.values(menu || {}).flat();
+                const available = allItems.filter(i => i.available && (i.daily_stock === null || i.daily_stock === undefined || i.daily_stock > 0));
+                const totalStock = allItems.reduce((s, i) => s + (i.daily_stock ?? 0), 0);
+                const ticker = document.getElementById('live-stock-ticker');
+                if (ticker) {
+                    if (totalStock > 0) {
+                        ticker.textContent = `BATCH STATUS: ${totalStock} UNITS REMAINING FOR TODAY'S DROP`;
+                    } else if (available.length > 0) {
+                        ticker.textContent = `BATCH STATUS: ${available.length} ITEMS AVAILABLE — ORDER NOW`;
+                    } else {
+                        ticker.textContent = `BATCH STATUS: TODAY'S DROP — CHECK THE MENU FOR AVAILABILITY`;
+                    }
+                }
+            } catch { /* keep default text */ }
+        }
+        updateTicker();
+    </script>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        const premiumEase = "power4.inOut";
+        const popEase = "back.out(1.2)";
+
+        const tl = gsap.timeline({
+            scrollTrigger: {
+                trigger: "#deconstruction-section",
+                start: "top top",
+                end: "+=6000",
+                pin: true,
+                scrub: 1.2,
+            }
+        });
+
+        tl.to("#cake-unified", { filter: "brightness(1.4) blur(1px)", scale: 1.02, duration: 1, ease: "power2.in" }, "charge")
+          .to("#optical-flare", { opacity: 0.8, scale: 1, duration: 1, ease: "power2.in" }, "charge");
+
+        tl.to("#cake-unified", { opacity: 0, duration: 0.01 }, "swapIn")
+          .to("#layer-top, #layer-mid, #layer-base", { opacity: 1, duration: 0.01 }, "swapIn");
+
+        tl.to("#optical-flare", { opacity: 0, scale: 2, duration: 1.5, ease: "power3.out" }, "explode")
+          .fromTo("#layer-top", { filter: "blur(12px)" }, { filter: "blur(0px)", y: -190, rotationZ: -6, rotationX: 12, scale: 1.04, duration: 4, ease: premiumEase }, "explode")
+          .fromTo("#layer-mid", { filter: "blur(6px)" }, { filter: "blur(0px)", y: 0, rotationZ: 3, rotationX: 4, scale: 1.02, duration: 4, ease: premiumEase }, "explode")
+          .fromTo("#layer-base", { filter: "blur(12px)" }, { filter: "blur(0px)", y: 190, rotationZ: -3, rotationX: -12, scale: 0.96, duration: 4, ease: premiumEase }, "explode")
+          .to("#cake-orbit-group", { rotationY: 20, rotationX: 8, x: -30, duration: 4, ease: premiumEase }, "explode");
+
+        tl.to(".callout-container", { opacity: 1, pointerEvents: "auto", duration: 0.8 }, "cardsIn")
+          .to(".callout-dot", { scale: 1, duration: 0.5, stagger: 0.1, ease: popEase }, "cardsIn+=0.2")
+          .to(".callout-line", { scaleX: 1, duration: 0.9, stagger: 0.1, ease: "power3.out" }, "cardsIn+=0.4");
+
+        tl.to({}, { duration: 4 });
+
+        tl.to(".callout-line", { scaleX: 0, duration: 0.6, ease: "power3.in" }, "retract")
+          .to(".callout-dot", { scale: 0, duration: 0.4, ease: "power3.in" }, "retract+=0.1")
+          .to(".callout-container", { opacity: 0, pointerEvents: "none", duration: 0.4 }, "retract+=0.2");
+
+        tl.to("#cake-orbit-group", { rotationY: 0, rotationX: 0, x: 0, duration: 3, ease: premiumEase }, "reconstruct")
+          .to("#layer-top", { filter: "blur(8px)", y: 0, rotationZ: 0, rotationX: 0, scale: 1, duration: 3, ease: premiumEase }, "reconstruct")
+          .to("#layer-mid", { filter: "blur(4px)", y: 0, rotationZ: 0, rotationX: 0, scale: 1, duration: 3, ease: premiumEase }, "reconstruct")
+          .to("#layer-base", { filter: "blur(8px)", y: 0, rotationZ: 0, rotationX: 0, scale: 1, duration: 3, ease: premiumEase }, "reconstruct")
+          .to("#optical-flare", { opacity: 0.8, scale: 1, duration: 0.8, ease: "power2.in" }, "reconstruct+=2.2");
+
+        tl.to("#layer-top, #layer-mid, #layer-base", { filter: "blur(0px)", opacity: 0, duration: 0.01 }, "swapOut")
+          .to("#cake-unified", { opacity: 1, filter: "brightness(1) blur(0px)", duration: 0.01 }, "swapOut")
+          .to("#optical-flare", { opacity: 0, scale: 0, duration: 1, ease: "power3.out" }, "swapOut");
+
+        tl.to("#cake-orbit-group", { scale: 0.8, y: 60, opacity: 0.2, duration: 2.5, ease: premiumEase }, "finalState")
+          .to("#anatomy-title", { opacity: 1, scale: 1, duration: 2, ease: "power3.out" }, "finalState+=0.4")
+          .to("#conversion-hook", { y: 0, opacity: 1, duration: 2, ease: popEase }, "finalState+=0.7");
+    </script>
+</body>
+</html>

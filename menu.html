@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMY | Cloud Bakery — The Menu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;700&display=swap');
+
+        :root {
+            --red: #e52525;
+            --red-dim: rgba(229,37,37,0.12);
+            --glass: rgba(10,10,10,0.92);
+            --border: rgba(255,255,255,0.09);
+        }
+
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        h1,h2,h3,.display-font { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+        }
+
+        .smooth-transition { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* ── CART SIDEBAR ── */
+        #cart-sidebar {
+            position: fixed; right: 0; top: 0; bottom: 0; width: 380px; z-index: 60;
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #080808;
+            border-left: 1px solid rgba(255,255,255,0.07);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        #cart-sidebar.open { transform: translateX(0); }
+
+        .cart-overlay {
+            position: fixed; inset: 0; z-index: 59; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        .cart-overlay.visible { opacity: 1; pointer-events: all; }
+
+        /* ── TICKET MODAL ── */
+        #ticket-modal {
+            position: fixed; inset: 0; z-index: 80;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s ease;
+            padding: 2rem;
+        }
+        #ticket-modal.open { opacity: 1; pointer-events: all; }
+
+        .ticket-card {
+            background: #0a0a0a;
+            border: 1px solid rgba(229,37,37,0.3);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 480px; width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .ticket-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #e52525, transparent);
+        }
+        .ticket-perforated {
+            border-top: 1px dashed rgba(255,255,255,0.1);
+            margin: 1.5rem 0;
+        }
+
+        /* ── ORDER FORM MODAL ── */
+        #order-modal {
+            position: fixed; inset: 0; z-index: 75;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s ease;
+            padding: 2rem;
+        }
+        #order-modal.open { opacity: 1; pointer-events: all; }
+
+        /* ── CART FLOAT BTN ── */
+        #cart-float-btn {
+            position: fixed; bottom: 2rem; right: 2rem; z-index: 55;
+            background: #e52525; color: white;
+            border-radius: 50px; padding: 0.9rem 1.6rem;
+            font-family: 'Oswald', sans-serif; font-size: 0.75rem; letter-spacing: 0.2em;
+            cursor: pointer; border: none;
+            box-shadow: 0 0 40px rgba(229,37,37,0.4);
+            transition: all 0.3s ease;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        #cart-float-btn:hover { background: white; color: black; box-shadow: 0 0 50px rgba(255,255,255,0.2); }
+        #cart-float-btn.hidden-btn { transform: scale(0); opacity: 0; pointer-events: none; }
+
+        /* ── INPUT STYLES ── */
+        .samy-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        .samy-input:focus { border-color: #e52525; }
+        .samy-input::placeholder { color: rgba(255,255,255,0.25); }
+        .samy-input option { background: #111; }
+
+        /* ── QUANTITY CONTROL ── */
+        .qty-control {
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .qty-btn {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+            color: white; font-size: 1rem; cursor: pointer; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .qty-btn:hover { background: #e52525; border-color: #e52525; }
+
+        /* ── STOCK BADGE ── */
+        .stock-badge-low { color: #ff7043; }
+        .stock-badge-out { color: rgba(255,255,255,0.25); }
+        .stock-badge-ok  { color: #66bb6a; }
+
+        /* ── SCROLL ANIMATION ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .menu-card {
+            opacity: 0;
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* ── TOAST ── */
+        .samy-toast {
+            position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 50px; padding: 0.7rem 1.4rem;
+            font-size: 0.8rem; color: rgba(255,255,255,0.8);
+            opacity: 0; pointer-events: none; z-index: 90;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .samy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .samy-toast.error { border-color: rgba(229,37,37,0.4); color: #ef9a9a; }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#e52525] selection:text-white">
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 p-4">
+        <div class="glass-panel max-w-7xl mx-auto rounded-full px-8 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-xl font-bold tracking-wider flex items-center space-x-2">
+                <span class="text-[#e52525]">SAMY</span>
+                <span class="text-white/30 text-xs font-normal tracking-[0.2em]">| CLOUD BAKERY</span>
+            </a>
+            <ul class="hidden md:flex space-x-10 text-xs font-medium tracking-[0.15em] text-white/60">
+                <li class="hover:text-white smooth-transition"><a href="index.html">HOME</a></li>
+                <li class="text-white smooth-transition"><a href="menu.html">DESSERTS</a></li>
+                <li class="hover:text-white smooth-transition"><a href="contact.html">CONTACT</a></li>
+            </ul>
+            <div class="flex items-center gap-6 text-xs tracking-widest">
+                <button id="cart-nav-btn" class="text-white/80 hover:text-[#e52525] smooth-transition font-medium" style="display:none">
+                    CART <span id="cart-nav-count" class="text-[#e52525]"></span>
+                </button>
+                <a href="admin.html" class="text-white/40 hover:text-white/80 smooth-transition">ADMIN</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="pt-32 min-h-screen bg-[#050505]">
+        <div class="max-w-7xl mx-auto px-6 py-12">
+            <!-- Header -->
+            <div class="border-b border-white/10 pb-8 mb-16 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div>
+                    <p class="text-[#e52525] text-xs font-bold tracking-[0.4em] uppercase mb-3">// THE LAB MANIFESTO</p>
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tight">THE BAKERY MENU</h1>
+                </div>
+                <div class="text-right">
+                    <p class="text-white/40 text-xs uppercase tracking-widest font-light leading-relaxed max-w-xs mb-3">
+                        Fresh batches are dropped daily. Allocation operates on a strict sequence priority queue.
+                    </p>
+                    <div id="stock-status" class="text-[10px] font-mono text-white/30 tracking-widest"></div>
+                </div>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="flex gap-3 mb-12 flex-wrap" id="category-filters">
+                <button class="category-btn active text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-[#e52525] text-[#e52525] smooth-transition" data-cat="all">ALL</button>
+                <button class="category-btn text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-white/10 text-white/40 hover:border-white/30 hover:text-white smooth-transition" data-cat="starters">STARTERS</button>
+                <button class="category-btn text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-white/10 text-white/40 hover:border-white/30 hover:text-white smooth-transition" data-cat="mains">MAINS</button>
+                <button class="category-btn text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-white/10 text-white/40 hover:border-white/30 hover:text-white smooth-transition" data-cat="desserts">DESSERTS</button>
+                <button class="category-btn text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-white/10 text-white/40 hover:border-white/30 hover:text-white smooth-transition" data-cat="drinks">DRINKS</button>
+            </div>
+
+            <!-- Menu Grid -->
+            <div id="menu-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Skeleton loaders -->
+                ${Array(6).fill(0).map(() => `
+                <div class="glass-panel rounded-2xl overflow-hidden animate-pulse">
+                    <div class="p-8 space-y-4">
+                        <div class="h-3 bg-white/5 rounded w-1/3"></div>
+                        <div class="h-5 bg-white/5 rounded w-2/3"></div>
+                        <div class="h-3 bg-white/5 rounded w-full"></div>
+                        <div class="h-3 bg-white/5 rounded w-4/5"></div>
+                    </div>
+                    <div class="p-4 bg-white/3 border-t border-white/5 h-14"></div>
+                </div>`).join('')}
+            </div>
+
+            <div id="empty-state" class="hidden text-center py-24">
+                <p class="text-white/20 text-sm tracking-widest uppercase">No items available in this category.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="h-[30vh] bg-[#090909] border-t border-white/5 flex flex-col items-center justify-center text-center px-6 mt-12">
+        <p class="text-white/20 text-xs tracking-[0.3em] uppercase mb-2">Exclusive Drops Only</p>
+        <p class="text-white/40 text-sm tracking-widest max-w-md font-light">Our cloud kitchen prepares limited quantities daily.</p>
+    </footer>
+
+    <!-- CART OVERLAY -->
+    <div class="cart-overlay" id="cart-overlay"></div>
+
+    <!-- CART FLOAT BUTTON -->
+    <button id="cart-float-btn" class="hidden-btn">
+        <span>🛒</span>
+        <span id="cart-float-label">ORDER (<span id="cart-count">0</span>)</span>
+    </button>
+
+    <!-- CART SIDEBAR -->
+    <div id="cart-sidebar">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center">
+            <div>
+                <h2 class="font-bold tracking-[0.2em] text-sm uppercase">Your Order</h2>
+                <p class="text-white/30 text-[10px] tracking-widest mt-0.5">ALLOCATION QUEUE</p>
+            </div>
+            <button id="cart-close" class="text-white/40 hover:text-white text-xl w-8 h-8 flex items-center justify-center">✕</button>
+        </div>
+
+        <div id="cart-items-list" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+
+        <div class="p-6 border-t border-white/5 bg-[#080808]">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-white/50 text-xs tracking-widest uppercase">Total</span>
+                <span class="font-bold text-lg" id="cart-total">$0.00</span>
+            </div>
+            <button id="checkout-btn"
+                class="w-full bg-[#e52525] hover:bg-white hover:text-black text-white font-bold py-4 rounded-xl tracking-[0.2em] text-xs smooth-transition uppercase shadow-[0_0_30px_rgba(229,37,37,0.2)]">
+                SECURE ALLOCATION →
+            </button>
+            <button id="clear-cart-btn" class="w-full mt-3 text-white/30 hover:text-white/60 text-[10px] tracking-widest uppercase smooth-transition">
+                Clear Order
+            </button>
+        </div>
+    </div>
+
+    <!-- ORDER FORM MODAL -->
+    <div id="order-modal">
+        <div class="glass-panel rounded-3xl p-8 max-w-lg w-full relative max-h-[90vh] overflow-y-auto" style="border:1px solid rgba(229,37,37,0.2)">
+            <button id="order-modal-close" class="absolute top-6 right-6 text-white/40 hover:text-white text-xl">✕</button>
+            <p class="text-[#e52525] text-[10px] font-bold tracking-[0.3em] uppercase mb-2">// SECURE YOUR ALLOCATION</p>
+            <h2 class="text-2xl font-bold tracking-tight mb-6">COMPLETE ORDER</h2>
+
+            <!-- Order summary -->
+            <div id="order-summary-mini" class="mb-6 p-4 bg-white/3 rounded-xl border border-white/5 space-y-2"></div>
+
+            <form id="order-form" class="space-y-4">
+                <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Full Name *</label>
+                        <input type="text" id="o-name" class="samy-input" placeholder="Your name" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Phone *</label>
+                        <input type="tel" id="o-phone" class="samy-input" placeholder="+213..." required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Email *</label>
+                    <input type="email" id="o-email" class="samy-input" placeholder="your@email.com" required>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Delivery / Pickup</label>
+                    <select id="o-delivery" class="samy-input">
+                        <option value="pickup">Pickup from Cloud Lab</option>
+                        <option value="delivery">Delivery (add address below)</option>
+                    </select>
+                </div>
+                <div id="address-wrap" style="display:none">
+                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Delivery Address</label>
+                    <input type="text" id="o-address" class="samy-input" placeholder="Street, City, Zone">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">Special Instructions</label>
+                    <textarea id="o-notes" class="samy-input" rows="2" placeholder="Allergies, special requests..." maxlength="300"></textarea>
+                </div>
+
+                <p class="form-error text-[#ef9a9a] text-xs min-h-[1em]" id="order-error"></p>
+
+                <button type="submit" id="order-submit-btn"
+                    class="w-full bg-[#e52525] hover:bg-white hover:text-black text-white font-bold py-4 rounded-xl tracking-[0.2em] text-xs smooth-transition uppercase shadow-[0_0_30px_rgba(229,37,37,0.2)] mt-2">
+                    PLACE ORDER →
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ORDER TICKET MODAL -->
+    <div id="ticket-modal">
+        <div class="ticket-card" style="max-height:85vh;overflow-y:auto">
+            <div class="text-center mb-6">
+                <p class="text-[#e52525] text-2xl tracking-[0.4em] font-bold" style="font-family:'Oswald',sans-serif">SAMY</p>
+                <p class="text-white/30 text-[10px] tracking-[0.3em] uppercase mt-1">Cloud Bakery — Order Confirmed</p>
+            </div>
+
+            <div class="text-center mb-4">
+                <div class="text-[#e52525] text-3xl mb-2">✓</div>
+                <p class="text-white font-bold text-lg tracking-wide" style="font-family:'Oswald',sans-serif">ALLOCATION SECURED</p>
+            </div>
+
+            <div class="ticket-perforated"></div>
+
+            <div class="space-y-2 mb-4" id="ticket-meta"></div>
+
+            <div class="ticket-perforated"></div>
+
+            <div class="mb-4">
+                <p class="text-white/30 text-[10px] tracking-widest uppercase mb-3">Items Ordered</p>
+                <div id="ticket-items" class="space-y-2"></div>
+            </div>
+
+            <div class="ticket-perforated"></div>
+
+            <div class="flex justify-between items-center mb-6">
+                <span class="text-white/50 text-xs tracking-widest uppercase">Total Allocated</span>
+                <span class="font-bold text-white text-lg" id="ticket-total"></span>
+            </div>
+
+            <div class="text-center space-y-3">
+                <p class="text-white/20 text-[10px] tracking-widest">Present this ticket ID upon pickup/delivery</p>
+                <button onclick="document.getElementById('ticket-modal').classList.remove('open'); window.location.reload();"
+                    class="w-full border border-white/10 hover:border-white/30 text-white/60 hover:text-white font-bold py-3 rounded-xl tracking-widest text-xs smooth-transition uppercase">
+                    CLOSE & CONTINUE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="samy-toast" id="samy-toast"></div>
+
+    <script type="module">
+        import { loadMenu, submitOrder } from './api.js';
+
+        // ── STATE ──
+        let cart = [];
+        let allItems = [];
+        let currentCategory = 'all';
+
+        // ── TOAST ──
+        function toast(msg, type = '') {
+            const el = document.getElementById('samy-toast');
+            el.textContent = msg;
+            el.className = `samy-toast show${type ? ' ' + type : ''}`;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.className = 'samy-toast', 2800);
+        }
+
+        // ── LOAD MENU ──
+        async function loadAndRenderMenu() {
+            try {
+                const grouped = await loadMenu();
+                allItems = Object.values(grouped || {}).flat();
+
+                // Update stock status
+                const totalStock = allItems.reduce((s, i) => s + (i.daily_stock ?? 0), 0);
+                const stockEl = document.getElementById('stock-status');
+                if (stockEl && totalStock > 0) {
+                    stockEl.textContent = `${totalStock} UNITS IN TODAY'S BATCH`;
+                }
+
+                renderMenu(currentCategory);
+            } catch (err) {
+                document.getElementById('menu-grid').innerHTML =
+                    `<div class="col-span-3 text-center py-16 text-white/30 text-sm">Could not load menu. Please try again.</div>`;
+            }
+        }
+
+        function renderMenu(cat) {
+            const grid = document.getElementById('menu-grid');
+            const emptyEl = document.getElementById('empty-state');
+
+            let items = cat === 'all' ? allItems : allItems.filter(i => i.category === cat);
+            // Only show available items
+            items = items.filter(i => i.available !== false);
+
+            if (!items.length) {
+                grid.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+            emptyEl.classList.add('hidden');
+
+            grid.innerHTML = items.map((item, idx) => {
+                const stock = item.daily_stock;
+                const isOut = stock !== null && stock !== undefined && stock <= 0;
+                const isLow = stock !== null && stock !== undefined && stock > 0 && stock <= 5;
+                const inCart = cart.find(c => c.id === item.id);
+                const cartQty = inCart ? inCart.qty : 0;
+                const maxQty = stock !== null && stock !== undefined ? stock : 99;
+
+                const stockBadge = isOut
+                    ? `<span class="text-[10px] font-mono stock-badge-out">SOLD OUT</span>`
+                    : isLow
+                    ? `<span class="text-[10px] font-mono stock-badge-low">ONLY ${stock} LEFT</span>`
+                    : `<span class="text-[10px] font-mono stock-badge-ok">${stock !== null && stock !== undefined ? stock + ' IN STOCK' : 'AVAILABLE'}</span>`;
+
+                const itemCode = String(item.id || '').slice(-6).toUpperCase();
+
+                return `
+                <div class="glass-panel rounded-2xl overflow-hidden group smooth-transition hover:border-[#e52525]/50 flex flex-col justify-between menu-card"
+                    style="animation-delay:${idx * 60}ms" data-cat="${item.category || ''}">
+                    ${item.image_url ? `
+                    <div class="w-full h-44 overflow-hidden">
+                        <img src="${item.image_url}" alt="${escHtml(item.name)}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                    </div>` : ''}
+                    <div class="p-8 flex-1">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="text-xs font-mono text-[#e52525] font-bold tracking-widest">${escHtml(item.category?.toUpperCase() || '')} #${itemCode}</span>
+                            <span class="text-xl font-bold tracking-tight font-mono text-white/90">$${parseFloat(item.price || 0).toFixed(2)}</span>
+                        </div>
+                        <h3 class="text-xl font-bold tracking-tight mb-3 text-white">${escHtml(item.name)}</h3>
+                        <p class="text-white/50 text-xs leading-relaxed font-light mb-4">${escHtml(item.description || '')}</p>
+                        <div class="flex justify-between items-center text-[11px] border-t border-white/5 pt-3">
+                            <span class="text-white/30 uppercase tracking-wider">${escHtml(item.subcategory || '')}</span>
+                            ${stockBadge}
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white/3 border-t border-white/5 flex items-center justify-between group-hover:bg-[#e52525]/10 smooth-transition">
+                        ${isOut ? `
+                        <span class="w-full text-center text-[10px] font-bold tracking-[0.25em] text-white/20 uppercase">UNAVAILABLE</span>
+                        ` : cartQty > 0 ? `
+                        <div class="qty-control w-full justify-between">
+                            <button class="qty-btn" onclick="updateCart('${item.id}', -1)" ${cartQty <= 1 ? 'data-remove="true"' : ''}>−</button>
+                            <span class="text-white font-bold text-sm">${cartQty} IN ORDER</span>
+                            <button class="qty-btn" onclick="updateCart('${item.id}', 1)" ${cartQty >= maxQty ? 'disabled style="opacity:0.3"' : ''}>+</button>
+                        </div>
+                        ` : `
+                        <button class="w-full text-center text-[10px] font-bold tracking-[0.25em] text-white uppercase hover:text-[#e52525] smooth-transition add-to-cart-btn"
+                            onclick="addToCart(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                            ALLOCATE TO ORDER +
+                        </button>
+                        `}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── CART LOGIC ──
+        window.addToCart = function(item) {
+            const stock = item.daily_stock;
+            const maxQty = stock !== null && stock !== undefined ? stock : 99;
+            const existing = cart.find(c => c.id === item.id);
+            if (existing) {
+                if (existing.qty >= maxQty) { toast('Max quantity reached for this item.', 'error'); return; }
+                existing.qty++;
+            } else {
+                cart.push({ ...item, qty: 1 });
+            }
+            updateCartUI();
+            toast(`${item.name} added to order.`);
+            renderMenu(currentCategory);
+        };
+
+        window.updateCart = function(id, delta) {
+            const idx = cart.findIndex(c => String(c.id) === String(id));
+            if (idx === -1) return;
+            cart[idx].qty += delta;
+            if (cart[idx].qty <= 0) cart.splice(idx, 1);
+            updateCartUI();
+            renderMenu(currentCategory);
+        };
+
+        function updateCartUI() {
+            const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+            const count = cart.reduce((s, i) => s + i.qty, 0);
+
+            // Float button
+            const floatBtn = document.getElementById('cart-float-btn');
+            floatBtn.classList.toggle('hidden-btn', count === 0);
+            document.getElementById('cart-count').textContent = count;
+
+            // Nav button
+            const navBtn = document.getElementById('cart-nav-btn');
+            navBtn.style.display = count > 0 ? 'block' : 'none';
+            document.getElementById('cart-nav-count').textContent = `(${count})`;
+
+            // Total
+            document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
+
+            // Cart items list
+            const list = document.getElementById('cart-items-list');
+            if (!cart.length) {
+                list.innerHTML = `<div class="text-center py-12"><p class="text-white/20 text-xs tracking-widest uppercase">Your allocation is empty.</p><p class="text-white/10 text-xs mt-2">Add items from the menu.</p></div>`;
+                return;
+            }
+            list.innerHTML = cart.map(item => `
+                <div class="flex items-start gap-4 py-3 border-b border-white/5">
+                    <div class="flex-1">
+                        <p class="text-white text-sm font-medium">${escHtml(item.name)}</p>
+                        <p class="text-white/30 text-xs mt-0.5">$${parseFloat(item.price).toFixed(2)} × ${item.qty}</p>
+                    </div>
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="updateCart('${item.id}', -1)">−</button>
+                        <span class="text-white text-sm w-5 text-center">${item.qty}</span>
+                        <button class="qty-btn" onclick="updateCart('${item.id}', 1)">+</button>
+                    </div>
+                    <p class="text-white font-bold text-sm w-16 text-right">$${(item.price * item.qty).toFixed(2)}</p>
+                </div>
+            `).join('');
+        }
+
+        // ── CATEGORY FILTERS ──
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.category-btn').forEach(b => {
+                    b.className = 'category-btn text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-white/10 text-white/40 hover:border-white/30 hover:text-white smooth-transition';
+                    b.setAttribute('data-cat', b.getAttribute('data-cat'));
+                });
+                btn.className = 'category-btn active text-[10px] font-bold tracking-widest uppercase px-5 py-2 rounded-full border border-[#e52525] text-[#e52525] smooth-transition';
+                currentCategory = btn.getAttribute('data-cat');
+                renderMenu(currentCategory);
+            });
+        });
+
+        // ── CART SIDEBAR ──
+        function openCart() {
+            document.getElementById('cart-sidebar').classList.add('open');
+            document.getElementById('cart-overlay').classList.add('visible');
+        }
+        function closeCart() {
+            document.getElementById('cart-sidebar').classList.remove('open');
+            document.getElementById('cart-overlay').classList.remove('visible');
+        }
+
+        document.getElementById('cart-float-btn').addEventListener('click', openCart);
+        document.getElementById('cart-nav-btn').addEventListener('click', openCart);
+        document.getElementById('cart-close').addEventListener('click', closeCart);
+        document.getElementById('cart-overlay').addEventListener('click', closeCart);
+        document.getElementById('clear-cart-btn').addEventListener('click', () => {
+            cart = [];
+            updateCartUI();
+            renderMenu(currentCategory);
+            toast('Order cleared.');
+        });
+
+        // ── CHECKOUT → ORDER MODAL ──
+        document.getElementById('checkout-btn').addEventListener('click', () => {
+            if (!cart.length) return;
+            closeCart();
+            // Build mini summary
+            const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+            document.getElementById('order-summary-mini').innerHTML =
+                cart.map(i => `
+                <div class="flex justify-between text-xs text-white/60">
+                    <span>${escHtml(i.name)} × ${i.qty}</span>
+                    <span>$${(i.price * i.qty).toFixed(2)}</span>
+                </div>`).join('') +
+                `<div class="flex justify-between text-sm font-bold text-white pt-2 border-t border-white/5 mt-2">
+                    <span>Total</span><span>$${total.toFixed(2)}</span>
+                </div>`;
+            document.getElementById('order-modal').classList.add('open');
+        });
+
+        document.getElementById('order-modal-close').addEventListener('click', () => {
+            document.getElementById('order-modal').classList.remove('open');
+        });
+
+        // Delivery address toggle
+        document.getElementById('o-delivery').addEventListener('change', function() {
+            document.getElementById('address-wrap').style.display = this.value === 'delivery' ? 'block' : 'none';
+        });
+
+        // ── PLACE ORDER ──
+        document.getElementById('order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const trap = e.target.querySelector('[name="website"]');
+            if (trap?.value) return;
+
+            const btn = document.getElementById('order-submit-btn');
+            const errEl = document.getElementById('order-error');
+            errEl.textContent = '';
+            btn.disabled = true;
+            btn.textContent = 'SECURING ALLOCATION…';
+
+            const name     = document.getElementById('o-name').value.trim();
+            const phone    = document.getElementById('o-phone').value.trim();
+            const email    = document.getElementById('o-email').value.trim();
+            const delivery = document.getElementById('o-delivery').value;
+            const address  = document.getElementById('o-address').value.trim();
+            const notes    = document.getElementById('o-notes').value.trim();
+
+            if (!name || !phone || !email) {
+                errEl.textContent = 'Please fill in all required fields.';
+                btn.disabled = false; btn.textContent = 'PLACE ORDER →'; return;
+            }
+            if (delivery === 'delivery' && !address) {
+                errEl.textContent = 'Please enter your delivery address.';
+                btn.disabled = false; btn.textContent = 'PLACE ORDER →'; return;
+            }
+            if (!cart.length) {
+                errEl.textContent = 'Your cart is empty.';
+                btn.disabled = false; btn.textContent = 'PLACE ORDER →'; return;
+            }
+
+            const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+            const orderData = {
+                name, phone, email, delivery_type: delivery, address, notes,
+                items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+                total: total.toFixed(2),
+                status: 'confirmed',
+            };
+
+            const result = await submitOrder(e.target, orderData);
+
+            btn.disabled = false; btn.textContent = 'PLACE ORDER →';
+
+            if (result.ok) {
+                document.getElementById('order-modal').classList.remove('open');
+                showTicket(result.order || orderData, result.ticketId);
+                cart = [];
+                updateCartUI();
+            } else {
+                errEl.textContent = result.message || 'Something went wrong. Please try again.';
+            }
+        });
+
+        // ── TICKET ──
+        function showTicket(order, ticketId) {
+            const tid = ticketId || String(order.id || '').slice(-8).toUpperCase() || Math.random().toString(36).slice(2,10).toUpperCase();
+            const now = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+            document.getElementById('ticket-meta').innerHTML = `
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Ticket ID</span>
+                    <code class="text-[#e52525] font-bold tracking-widest">${tid}</code>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Name</span>
+                    <span class="text-white">${escHtml(order.name)}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Contact</span>
+                    <span class="text-white">${escHtml(order.email)}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Type</span>
+                    <span class="text-white capitalize">${order.delivery_type || 'pickup'}</span>
+                </div>
+                ${order.address ? `
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Address</span>
+                    <span class="text-white text-right max-w-[60%]">${escHtml(order.address)}</span>
+                </div>` : ''}
+                <div class="flex justify-between text-xs">
+                    <span class="text-white/30 uppercase tracking-wider">Placed At</span>
+                    <span class="text-white">${now}</span>
+                </div>`;
+
+            const items = order.items || cart;
+            document.getElementById('ticket-items').innerHTML = items.map(i => `
+                <div class="flex justify-between text-xs py-1.5 border-b border-white/5">
+                    <span class="text-white/70">${escHtml(i.name)} <span class="text-white/30">×${i.qty}</span></span>
+                    <span class="text-white">$${(parseFloat(i.price) * i.qty).toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('ticket-total').textContent = `$${parseFloat(order.total || 0).toFixed(2)}`;
+            document.getElementById('ticket-modal').classList.add('open');
+        }
+
+        function escHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[c]));
+        }
+        window.escHtml = escHtml;
+
+        // ── INIT ──
+        updateCartUI();
+        loadAndRenderMenu();
+    </script>
+</body>
+</html>

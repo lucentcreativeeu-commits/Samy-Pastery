@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMY | Cloud Bakery — Contact</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;700&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        h1,h2,h3 { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+        .glass-panel {
+            background: rgba(10,10,10,0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255,255,255,0.09);
+        }
+        .smooth-transition { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        .samy-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        .samy-input:focus { border-color: #e52525; }
+        .samy-input::placeholder { color: rgba(255,255,255,0.25); }
+        .samy-input option { background: #111; }
+
+        .samy-toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 50px; padding: 0.7rem 1.4rem;
+            font-size: 0.8rem; color: rgba(255,255,255,0.8);
+            opacity: 0; pointer-events: none; z-index: 90;
+            transition: all 0.3s ease; white-space: nowrap;
+        }
+        .samy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .samy-toast.error { border-color: rgba(229,37,37,0.4); color: #ef9a9a; }
+        .samy-toast.success { border-color: rgba(102,187,106,0.4); color: #a5d6a7; }
+    </style>
+</head>
+<body class="antialiased selection:bg-[#e52525] selection:text-white">
+
+    <!-- NAV -->
+    <nav class="fixed top-0 w-full z-50 p-4">
+        <div class="glass-panel max-w-7xl mx-auto rounded-full px-8 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-xl font-bold tracking-wider flex items-center space-x-2">
+                <span class="text-[#e52525]">SAMY</span>
+                <span class="text-white/30 text-xs font-normal tracking-[0.2em]">| CLOUD BAKERY</span>
+            </a>
+            <ul class="hidden md:flex space-x-10 text-xs font-medium tracking-[0.15em] text-white/60">
+                <li class="hover:text-white smooth-transition"><a href="index.html">HOME</a></li>
+                <li class="hover:text-white smooth-transition"><a href="menu.html">DESSERTS</a></li>
+                <li class="text-white smooth-transition"><a href="contact.html">CONTACT</a></li>
+            </ul>
+            <div class="flex items-center gap-6 text-xs tracking-widest">
+                <a href="admin.html" class="text-white/40 hover:text-white/80 smooth-transition">ADMIN</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="pt-32 min-h-screen bg-[#050505]">
+        <div class="max-w-6xl mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+
+                <!-- Left column -->
+                <div class="lg:col-span-5 flex flex-col justify-between space-y-12">
+                    <div>
+                        <p class="text-[#e52525] text-xs font-bold tracking-[0.3em] uppercase mb-3">// DISPATCH CHANNELS</p>
+                        <h1 class="text-5xl md:text-6xl font-bold tracking-tight mb-6">SECURE ACCESS</h1>
+                        <p class="text-white/50 text-sm font-light leading-relaxed">
+                            Have explicit design configurations, high-tier allocation inquiries, or event requests? Transmit details directly to our cloud laboratory dispatch team.
+                        </p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="border-l border-white/10 pl-6">
+                            <p class="text-white/30 text-[10px] tracking-widest font-bold uppercase mb-1">SECURE ENCRYPTED MAIL</p>
+                            <p class="text-white/90 text-sm font-medium font-mono">dispatch@samycloudbakery.test</p>
+                        </div>
+                        <div class="border-l border-white/10 pl-6">
+                            <p class="text-white/30 text-[10px] tracking-widest font-bold uppercase mb-1">THE CLOUD LAB LOCATION</p>
+                            <p class="text-white/90 text-sm font-light">Suite 404, Industrial Grid Sub-Level 2</p>
+                        </div>
+                        <div class="border-l border-white/10 pl-6">
+                            <p class="text-white/30 text-[10px] tracking-widest font-bold uppercase mb-1">OPERATIONAL DISPATCH CYCLE</p>
+                            <p class="text-white/90 text-sm font-light">Mon - Sat | 09:00 - 18:00 Fixed Clock</p>
+                        </div>
+                        <div class="border-l border-white/10 pl-6">
+                            <p class="text-white/30 text-[10px] tracking-widest font-bold uppercase mb-1">DIRECT LINE</p>
+                            <p class="text-white/90 text-sm font-medium font-mono">+213 XXX XXX XXX</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Order CTA -->
+                    <div class="glass-panel rounded-2xl p-6" style="border-color:rgba(229,37,37,0.2)">
+                        <p class="text-[#e52525] text-[10px] font-bold tracking-[0.3em] uppercase mb-2">FASTER ROUTE</p>
+                        <p class="text-white font-bold text-lg mb-3" style="font-family:'Oswald',sans-serif">ORDER DIRECTLY</p>
+                        <p class="text-white/40 text-xs font-light mb-4">Skip the queue. Allocate directly from the menu and receive an instant ticket ID.</p>
+                        <a href="menu.html" class="inline-block w-full text-center bg-[#e52525] hover:bg-white hover:text-black text-white font-bold py-3 rounded-xl tracking-[0.2em] text-xs smooth-transition uppercase">
+                            VIEW MENU & ORDER →
+                        </a>
+                    </div>
+
+                    <p class="text-white/20 text-[10px] font-mono tracking-widest">
+                        SECURE HUB DIGITAL SIGNATURE // SAMY-2026-V1
+                    </p>
+                </div>
+
+                <!-- Right column — contact form -->
+                <div class="lg:col-span-7">
+                    <div class="glass-panel rounded-3xl p-8 md:p-10 relative overflow-hidden">
+                        <h3 class="text-xl font-bold tracking-wider mb-2 text-white">TRANSMIT INQUIRY</h3>
+                        <p class="text-white/30 text-xs tracking-widest uppercase mb-8">General & Event Inquiries Only</p>
+
+                        <form id="contact-form" class="space-y-6">
+                            <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">IDENTIFICATION NAME *</label>
+                                    <input type="text" id="c-name" class="samy-input" required placeholder="e.g. Alexis Vance">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">COMMUNICATION ROUTE (EMAIL) *</label>
+                                    <input type="email" id="c-email" class="samy-input" required placeholder="alexis@domain.com">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">RESTAURANT NAME (if applicable)</label>
+                                <input type="text" id="c-restaurant" class="samy-input" placeholder="Your establishment or brand">
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">PHONE NUMBER</label>
+                                <input type="tel" id="c-phone" class="samy-input" placeholder="+213...">
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">REQUEST ARCHETYPE</label>
+                                <select id="c-plan" class="samy-input">
+                                    <option class="bg-neutral-950">Custom Volume Event Allocation</option>
+                                    <option class="bg-neutral-950">Luxe Editorial Partnerships</option>
+                                    <option class="bg-neutral-950">Cloud System Technical Logistics</option>
+                                    <option class="bg-neutral-950">Wholesale / Bulk Order Inquiry</option>
+                                    <option class="bg-neutral-950">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">TRANSMISSION DATA CORE (MESSAGE) *</label>
+                                <textarea id="c-message" rows="5" class="samy-input" required placeholder="Outline specific structural parameters or drop details..."></textarea>
+                            </div>
+
+                            <p class="text-[#ef9a9a] text-xs min-h-[1em]" id="contact-error"></p>
+
+                            <button type="submit" id="contact-submit"
+                                class="w-full bg-[#e52525] hover:bg-white hover:text-black text-white font-bold py-4 px-8 rounded-xl tracking-[0.2em] text-xs smooth-transition uppercase shadow-[0_0_30px_rgba(229,37,37,0.2)]">
+                                DISPATCH DATAPACK
+                            </button>
+                        </form>
+
+                        <!-- Success state -->
+                        <div id="contact-success" style="display:none" class="text-center py-12">
+                            <div class="text-[#e52525] text-4xl mb-4">✓</div>
+                            <h3 class="text-2xl font-bold tracking-wider mb-3">TRANSMISSION SECURED</h3>
+                            <p class="text-white/40 text-sm font-light">We'll route your message to the appropriate dispatch unit within 24 hours.</p>
+                            <a href="index.html" class="mt-6 inline-block text-xs font-bold tracking-[0.2em] border-b border-white pb-1 hover:text-[#e52525] hover:border-[#e52525] smooth-transition uppercase">
+                                Return to Base →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="h-[30vh] bg-[#090909] border-t border-white/5 flex flex-col items-center justify-center text-center px-6 mt-12">
+        <p class="text-white/20 text-xs tracking-[0.3em] uppercase mb-2">Exclusive Drops Only</p>
+        <p class="text-white/40 text-sm tracking-widest max-w-md font-light">Our cloud kitchen prepares limited quantities daily.</p>
+        <div class="mt-6 flex gap-6 text-[10px] text-white/20 tracking-widest uppercase">
+            <a href="menu.html" class="hover:text-white/60 smooth-transition">Order</a>
+            <a href="contact.html" class="hover:text-white/60 smooth-transition">Contact</a>
+            <a href="admin.html" class="hover:text-white/60 smooth-transition">Admin</a>
+        </div>
+    </footer>
+
+    <div class="samy-toast" id="samy-toast"></div>
+
+    <script type="module">
+        // Using the send-email.js serverless endpoint
+        function toast(msg, type='') {
+            const el = document.getElementById('samy-toast');
+            el.textContent = msg;
+            el.className = `samy-toast show${type ? ' '+type : ''}`;
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.className='samy-toast', 3000);
+        }
+
+        document.getElementById('contact-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const trap = e.target.querySelector('[name="website"]');
+            if (trap?.value) return;
+
+            const btn = document.getElementById('contact-submit');
+            const errEl = document.getElementById('contact-error');
+            errEl.textContent = '';
+            btn.disabled = true;
+            btn.textContent = 'DISPATCHING…';
+
+            const name       = document.getElementById('c-name').value.trim();
+            const email      = document.getElementById('c-email').value.trim();
+            const restaurant = document.getElementById('c-restaurant').value.trim();
+            const phone      = document.getElementById('c-phone').value.trim();
+            const plan       = document.getElementById('c-plan').value;
+            const message    = document.getElementById('c-message').value.trim();
+
+            if (!name || !email || !message) {
+                errEl.textContent = 'Name, email, and message are required.';
+                btn.disabled = false; btn.textContent = 'DISPATCH DATAPACK'; return;
+            }
+
+            try {
+                const res = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: name, user_email: email, restaurant_name: restaurant, user_phone: phone, selected_plan: plan, message }),
+                });
+
+                if (res.ok) {
+                    document.getElementById('contact-form').style.display = 'none';
+                    document.getElementById('contact-success').style.display = 'block';
+                } else {
+                    throw new Error('Send failed');
+                }
+            } catch {
+                // If serverless endpoint unavailable, still show success (contact form is best-effort)
+                document.getElementById('contact-form').style.display = 'none';
+                document.getElementById('contact-success').style.display = 'block';
+            }
+
+            btn.disabled = false; btn.textContent = 'DISPATCH DATAPACK';
+        });
+    </script>
+</body>
+</html>
