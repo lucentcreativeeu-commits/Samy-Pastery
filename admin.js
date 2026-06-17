@@ -1,10 +1,19 @@
 /**
- * SAMY CLOUD BAKERY — admin.js
- * Order management, menu manager, daily stock control, analytics, reviews.
+ * SAMY CLOUD BAKERY — admin.js (v3)
+ * ─────────────────────────────────────────────────────────────
+ * Full admin dashboard: orders (pending → in_making → delivered),
+ * analytics (delivered-only revenue), category manager, menu manager
+ * (multi-image upload via Cloudinary, flavor/variant editor, stock),
+ * daily stock control, reviews.
+ * ─────────────────────────────────────────────────────────────
  */
 import {
   adminLogin,
   adminLogout,
+  adminFetchCategories,
+  adminCreateCategory,
+  adminUpdateCategory,
+  adminDeleteCategory,
   adminFetchOrders,
   adminFetchOrderItems,
   adminUpdateOrderStatus,
@@ -51,6 +60,9 @@ function pwStrength(pw) {
   if (/[^A-Za-z0-9]/.test(pw)) s++;
   return s;
 }
+function statusLabel(status) {
+  return { pending: 'Pending', in_making: 'In Making', delivered: 'Delivered', cancelled: 'Cancelled' }[status] || status;
+}
 
 // ─── TOAST ────────────────────────────────────────────────────
 function toast(msg, type = 'success') {
@@ -65,6 +77,28 @@ function toast(msg, type = 'success') {
 // ─── MODAL HELPERS ────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+// ─── CLOUDINARY UPLOAD ────────────────────────────────────────
+async function uploadImageToCloudinary(file) {
+  const cfg = await getConfig();
+  if (!cfg.cloudinaryCloudName || !cfg.cloudinaryUploadPreset) {
+    throw new Error('Image upload is not configured (missing Cloudinary settings).');
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', cfg.cloudinaryUploadPreset);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudinaryCloudName}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || 'Image upload failed.');
+  }
+  const data = await res.json();
+  return data.secure_url;
+}
 
 // ─── SESSION TIMER ────────────────────────────────────────────
 const SESSION_MS  = 30 * 60 * 1000;
@@ -220,11 +254,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // SIDEBAR NAVIGATION
   // ──────────────────────────────────────
   const pageMeta = {
-    orders:    { title: 'ORDERS',       sub: 'Manage customer orders and allocations' },
-    analytics: { title: 'ANALYTICS',    sub: 'Order trends and revenue metrics' },
-    menu:      { title: 'MENU MANAGER', sub: 'Create and manage menu items' },
-    stock:     { title: 'DAILY STOCK',  sub: 'Control per-item stock for today\'s drop' },
-    reviews:   { title: 'REVIEWS',      sub: 'Private customer feedback and ratings' },
+    orders:     { title: 'ORDERS',         sub: 'Manage customer orders and allocations' },
+    analytics:  { title: 'ANALYTICS',      sub: 'Order trends and delivered-revenue metrics' },
+    categories: { title: 'CATEGORIES',     sub: 'Manage storefront category filters' },
+    menu:       { title: 'MENU MANAGER',   sub: 'Create and manage menu items' },
+    stock:      { title: 'DAILY STOCK',    sub: 'Control per-item stock for today\'s drop' },
+    reviews:    { title: 'REVIEWS',        sub: 'Private customer feedback and ratings' },
   };
 
   function initDashboard() {
@@ -246,16 +281,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadSection(key) {
     switch (key) {
-      case 'orders':    loadOrders('all');   break;
-      case 'analytics': loadAnalytics();     break;
-      case 'menu':      loadMenuItems();     break;
-      case 'stock':     loadStockManager();  break;
-      case 'reviews':   loadReviews();       break;
+      case 'orders':      loadOrders(currentOrderFilter); break;
+      case 'analytics':   loadAnalytics();                break;
+      case 'categories':  loadCategoriesManager();         break;
+      case 'menu':        loadMenuItems();                 break;
+      case 'stock':       loadStockManager();              break;
+      case 'reviews':     loadReviews();                   break;
     }
   }
 
   // ──────────────────────────────────────
-  // ORDERS
+  // ORDERS  (pending → in_making → delivered | cancelled)
   // ──────────────────────────────────────
   let currentOrderFilter = 'all';
   let allOrders          = [];
@@ -322,18 +358,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderOrderRow(r) {
     const tid    = shortId(r.id);
-    const status = r.status || 'confirmed';
+    const status = r.status || 'pending';
     const badgeCls = {
-      confirmed: 'badge-confirmed',
-      preparing: 'badge-preparing',
-      fulfilled: 'badge-fulfilled',
-      cancelled: 'badge-cancelled',
       pending:   'badge-pending',
+      in_making: 'badge-in_making',
+      delivered: 'badge-delivered',
+      cancelled: 'badge-cancelled',
     }[status] || 'badge-pending';
 
-    const canCancel  = !['cancelled','fulfilled'].includes(status);
-    const canPrepare = status === 'confirmed';
-    const canFulfill = status === 'preparing';
+    const canCancel = !['cancelled', 'delivered'].includes(status);
+    const canAccept = status === 'pending';
+    const canDeliver = status === 'in_making';
 
     return `
       <tr data-id="${r.id}">
@@ -345,13 +380,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td style="text-transform:capitalize">${esc(r.delivery_type || 'pickup')}</td>
         <td style="font-weight:600;color:white">$${parseFloat(r.total || 0).toFixed(2)}</td>
-        <td><span class="badge ${badgeCls}">${status}</span></td>
+        <td><span class="badge ${badgeCls}">${statusLabel(status)}</span></td>
         <td style="font-size:0.75rem">${formatDateTime(r.created_at)}</td>
         <td style="white-space:nowrap">
           <button class="tb view"   data-action="details"  data-id="${r.id}">Details</button>
-          ${canPrepare ? `<button class="tb warn"   data-action="prepare"  data-id="${r.id}">Preparing</button>` : ''}
-          ${canFulfill ? `<button class="tb ok"     data-action="fulfill"  data-id="${r.id}">Fulfilled</button>` : ''}
-          ${canCancel  ? `<button class="tb danger" data-action="cancel"   data-id="${r.id}">Cancel</button>` : ''}
+          ${canAccept  ? `<button class="tb warn"   data-action="accept"  data-id="${r.id}">Accept Order</button>` : ''}
+          ${canDeliver ? `<button class="tb ok"     data-action="deliver" data-id="${r.id}">Delivered</button>` : ''}
+          ${canCancel  ? `<button class="tb danger" data-action="cancel"  data-id="${r.id}">Cancel</button>` : ''}
         </td>
       </tr>`;
   }
@@ -368,11 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
       items = await adminFetchOrderItems(r.id) || [];
     } catch { /* ignore */ }
 
-    const tid      = shortId(r.id);
-    const status   = r.status || 'confirmed';
-    const canCancel  = !['cancelled','fulfilled'].includes(status);
-    const canPrepare = status === 'confirmed';
-    const canFulfill = status === 'preparing';
+    const tid    = shortId(r.id);
+    const status = r.status || 'pending';
+    const canCancel  = !['cancelled', 'delivered'].includes(status);
+    const canAccept  = status === 'pending';
+    const canDeliver = status === 'in_making';
 
     slot.innerHTML = `
       <div class="detail-panel">
@@ -388,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="detail-field"><label>Email</label><span>${esc(r.email)}</span></div>
           <div class="detail-field"><label>Phone</label><span>${esc(r.phone || '—')}</span></div>
           <div class="detail-field"><label>Type</label><span style="text-transform:capitalize">${esc(r.delivery_type || 'pickup')}</span></div>
-          <div class="detail-field"><label>Status</label><span>${status}</span></div>
+          <div class="detail-field"><label>Status</label><span>${statusLabel(status)}</span></div>
           <div class="detail-field"><label>Placed</label><span>${formatDateTime(r.created_at)}</span></div>
           <div class="detail-field"><label>Total</label><span style="color:white;font-weight:600">$${parseFloat(r.total || 0).toFixed(2)}</span></div>
           ${r.address ? `<div class="detail-field" style="grid-column:1/-1"><label>Delivery Address</label><span>${esc(r.address)}</span></div>` : ''}
@@ -401,11 +436,12 @@ document.addEventListener('DOMContentLoaded', () => {
           <p style="font-size:0.62rem;font-weight:700;letter-spacing:0.2em;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.6rem">Items Ordered</p>
           <div class="order-items-mini">
             <table>
-              <thead><tr><th>Item</th><th>Unit Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+              <thead><tr><th>Item</th><th>Flavor/Variant</th><th>Unit Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
               <tbody>
                 ${items.map(i => `
                   <tr>
                     <td class="td-name">${esc(i.item_name)}</td>
+                    <td style="color:var(--text-muted)">${esc(i.variant || '—')}</td>
                     <td>$${parseFloat(i.price || 0).toFixed(2)}</td>
                     <td>${i.qty}</td>
                     <td style="color:white;font-weight:500">$${(parseFloat(i.price || 0) * i.qty).toFixed(2)}</td>
@@ -416,8 +452,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>` : '<p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.8rem">No item details found.</p>'}
 
         <div style="display:flex;gap:0.6rem;margin-top:1.5rem;flex-wrap:wrap">
-          ${canPrepare ? `<button class="tb warn"   data-action="prepare" data-id="${r.id}">Mark Preparing</button>` : ''}
-          ${canFulfill ? `<button class="tb ok"     data-action="fulfill" data-id="${r.id}">Mark Fulfilled</button>` : ''}
+          ${canAccept  ? `<button class="tb warn"   data-action="accept"  data-id="${r.id}">Accept Order</button>` : ''}
+          ${canDeliver ? `<button class="tb ok"     data-action="deliver" data-id="${r.id}">Mark Delivered</button>` : ''}
           ${canCancel  ? `<button class="tb danger" data-action="cancel"  data-id="${r.id}">Cancel Order</button>` : ''}
         </div>
       </div>`;
@@ -443,19 +479,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (action === 'prepare') {
+    if (action === 'accept') {
       try {
-        await adminUpdateOrderStatus(id, 'preparing');
-        toast('Order marked as preparing.');
+        await adminUpdateOrderStatus(id, 'in_making');
+        toast('Order accepted — now in making.');
         if (openOrderId === id) closeOrderDetail();
         loadOrders(currentOrderFilter);
       } catch (err) { toast(err.message, 'error'); }
 
-    } else if (action === 'fulfill') {
+    } else if (action === 'deliver') {
       try {
-        await adminUpdateOrderStatus(id, 'fulfilled');
-        toast('Order marked as fulfilled.');
-        if (order) sendCustomerEmail(order, 'fulfilled', '').catch(() => {});
+        await adminUpdateOrderStatus(id, 'delivered');
+        toast('Order marked as delivered.');
+        // Best-effort customer email — safe no-op until /api/notify has an order-specific template.
+        if (order) sendCustomerEmail({ ...order, status: 'delivered' }, 'delivered', '').catch(() => {});
         if (openOrderId === id) closeOrderDetail();
         loadOrders(currentOrderFilter);
       } catch (err) { toast(err.message, 'error'); }
@@ -498,14 +535,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ──────────────────────────────────────
-  // ANALYTICS
+  // ANALYTICS  (revenue counts delivered orders only)
   // ──────────────────────────────────────
   async function loadAnalytics() {
     const wrap = document.getElementById('analytics-wrap');
     wrap.innerHTML = '<p class="loading-msg">Loading analytics…</p>';
     try {
       const rows = await adminFetchAnalytics();
-      wrap.innerHTML = renderAnalytics(rows);
+      wrap.innerHTML = renderAnalytics(rows || []);
     } catch (err) {
       wrap.innerHTML = `<p class="loading-msg" style="color:#ef9a9a">${esc(err.message)}</p>`;
     }
@@ -513,15 +550,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderAnalytics(rows) {
     const total     = rows.length;
-    const confirmed = rows.filter(r => r.status === 'confirmed').length;
-    const preparing = rows.filter(r => r.status === 'preparing').length;
-    const fulfilled = rows.filter(r => r.status === 'fulfilled').length;
-    const cancelled = rows.filter(r => r.status === 'cancelled').length;
-    const revenue   = rows.filter(r => r.status !== 'cancelled').reduce((s,r) => s + parseFloat(r.total || 0), 0);
-    const avgOrder  = fulfilled > 0 ? revenue / fulfilled : 0;
+    const pending    = rows.filter(r => r.status === 'pending').length;
+    const inMaking   = rows.filter(r => r.status === 'in_making').length;
+    const delivered  = rows.filter(r => r.status === 'delivered').length;
+    const cancelled  = rows.filter(r => r.status === 'cancelled').length;
 
-    const dayNames  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const dayCount  = Array(7).fill(0);
+    // Only delivered orders count as completed sales / revenue.
+    const deliveredRows = rows.filter(r => r.status === 'delivered');
+    const revenue   = deliveredRows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+    const avgOrder  = delivered > 0 ? revenue / delivered : 0;
+
+    const dayNames   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const dayCount   = Array(7).fill(0);
     const monthCount = {};
     const typeCount  = { pickup: 0, delivery: 0 };
 
@@ -539,8 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const busyDay = dayNames[dayCount.indexOf(Math.max(...dayCount))];
     const sortedMonths = Object.keys(monthCount).sort().slice(-6);
     const monthMax = Math.max(...sortedMonths.map(m => monthCount[m]), 1);
-    const fulfillRate = total ? Math.round(fulfilled / total * 100) : 0;
-    const cancelRate  = total ? Math.round(cancelled / total * 100) : 0;
+    const deliveredRate = total ? Math.round(delivered / total * 100) : 0;
+    const cancelRate    = total ? Math.round(cancelled / total * 100) : 0;
 
     return `
       <div class="kpi-grid">
@@ -549,24 +589,24 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="kpi-label">Total Orders</div>
         </div>
         <div class="kpi-card">
+          <div class="kpi-value" style="color:#ffcc80">${pending}</div>
+          <div class="kpi-label">Pending</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" style="color:#ce93d8">${inMaking}</div>
+          <div class="kpi-label">In Making</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value" style="color:#90caf9">${delivered}</div>
+          <div class="kpi-label">Delivered (Completed Sales)</div>
+        </div>
+        <div class="kpi-card">
           <div class="kpi-value" style="color:var(--red)">$${revenue.toFixed(0)}</div>
-          <div class="kpi-label">Total Revenue</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${fulfillRate}%</div>
-          <div class="kpi-label">Fulfillment Rate</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${cancelRate}%</div>
-          <div class="kpi-label">Cancellation Rate</div>
+          <div class="kpi-label">Revenue (Delivered Only)</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">$${avgOrder.toFixed(0)}</div>
-          <div class="kpi-label">Avg Order Value</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${fulfilled}</div>
-          <div class="kpi-label">Fulfilled Orders</div>
+          <div class="kpi-label">Avg Delivered Order Value</div>
         </div>
       </div>
 
@@ -620,47 +660,296 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="chart-card">
         <p class="chart-title">Status Breakdown</p>
         ${[
-          {label:'Confirmed', count:confirmed, color:'#a5d6a7'},
-          {label:'Preparing', count:preparing, color:'#ce93d8'},
-          {label:'Fulfilled', count:fulfilled, color:'#90caf9'},
+          {label:'Pending',   count:pending,   color:'#ffcc80'},
+          {label:'In Making', count:inMaking,  color:'#ce93d8'},
+          {label:'Delivered', count:delivered, color:'#90caf9'},
           {label:'Cancelled', count:cancelled, color:'#ef9a9a'},
         ].map(s => `
           <div class="rating-row" style="margin-bottom:0.8rem">
-            <span class="rating-row-label" style="width:70px;color:${s.color};font-size:0.7rem;font-weight:600;letter-spacing:0.05em">${s.label}</span>
+            <span class="rating-row-label" style="width:80px;color:${s.color};font-size:0.7rem;font-weight:600;letter-spacing:0.05em">${s.label}</span>
             <div class="rating-row-track" style="flex:1"><div class="rating-row-fill" style="width:${total?Math.round(s.count/total*100):0}%;background:${s.color}"></div></div>
             <span class="rating-row-count" style="width:30px;text-align:right">${s.count}</span>
           </div>`).join('')}
+        <p class="chart-note">Delivered rate: <strong class="accent">${deliveredRate}%</strong> · Cancellation rate: <strong class="accent">${cancelRate}%</strong></p>
       </div>`;
   }
 
   // ──────────────────────────────────────
-  // MENU MANAGER
+  // CATEGORY MANAGER
   // ──────────────────────────────────────
-  let cachedMenuItems = [];
+  let cachedCategories = [];
+  let editingCategoryId = null;
 
-  document.getElementById('add-item-btn')?.addEventListener('click', () => openMenuForm(null));
+  document.getElementById('add-category-btn')?.addEventListener('click', () => openCategoryForm(null));
+  document.getElementById('cancel-category-form')?.addEventListener('click', () => {
+    document.getElementById('category-form-panel').style.display = 'none';
+  });
+
+  document.getElementById('category-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('[type="submit"]');
+    btn.disabled = true; btn.textContent = 'SAVING…';
+    const errEl = document.getElementById('category-form-error');
+    errEl.textContent = '';
+
+    const name      = document.getElementById('cat-name').value.trim();
+    const slugInput = document.getElementById('cat-slug').value.trim();
+    const sortOrder = document.getElementById('cat-sort').value;
+
+    if (!name) { errEl.textContent = 'Category name is required.'; btn.disabled = false; btn.textContent = 'SAVE CATEGORY'; return; }
+
+    try {
+      const payload = { name, slug: slugInput, sort_order: sortOrder };
+      if (editingCategoryId) {
+        await adminUpdateCategory(editingCategoryId, payload);
+      } else {
+        await adminCreateCategory(payload);
+      }
+      document.getElementById('category-form-panel').style.display = 'none';
+      e.target.reset();
+      editingCategoryId = null;
+      toast('Category saved.');
+      loadCategoriesManager();
+    } catch (err) {
+      errEl.textContent = err.message || 'Could not save category. Slug may already be in use.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'SAVE CATEGORY';
+    }
+  });
+
+  function openCategoryForm(cat) {
+    editingCategoryId = cat?.id || null;
+    document.getElementById('category-form-title').textContent = cat ? 'EDIT CATEGORY' : 'ADD CATEGORY';
+    document.getElementById('cat-name').value = cat?.name || '';
+    document.getElementById('cat-slug').value = cat?.slug || '';
+    document.getElementById('cat-sort').value = cat?.sort_order ?? 0;
+    document.getElementById('category-form-error').textContent = '';
+    document.getElementById('category-form-panel').style.display = 'block';
+    document.getElementById('cat-name').focus();
+    document.getElementById('category-form-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function loadCategoriesManager() {
+    const wrap = document.getElementById('category-table-wrap');
+    wrap.innerHTML = '<p class="loading-msg">Loading categories…</p>';
+    try {
+      const [cats, items] = await Promise.all([
+        adminFetchCategories(),
+        adminFetchMenuItems().catch(() => []),
+      ]);
+      cachedCategories = cats || [];
+
+      if (!cachedCategories.length) {
+        wrap.innerHTML = '<p class="empty">No categories yet. Add your first category above — it will appear instantly as a filter on the storefront.</p>';
+        return;
+      }
+
+      const countByCategory = {};
+      (items || []).forEach(i => {
+        const key = i.category_id || i.category;
+        countByCategory[key] = (countByCategory[key] || 0) + 1;
+      });
+
+      wrap.innerHTML = `
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Slug</th><th>Sort Order</th><th>Items</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              ${cachedCategories.map(c => `
+                <tr data-id="${c.id}">
+                  <td class="td-name">${esc(c.name)}</td>
+                  <td style="font-family:'Oswald',sans-serif;font-size:0.78rem;color:var(--text-muted)">${esc(c.slug)}</td>
+                  <td>${c.sort_order}</td>
+                  <td>${countByCategory[c.id] || 0}</td>
+                  <td style="white-space:nowrap">
+                    <button class="tb edit"   data-action="edit"   data-id="${c.id}">Edit</button>
+                    <button class="tb danger" data-action="delete" data-id="${c.id}">Delete</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+      wrap.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = cachedCategories.find(c => String(c.id) === String(btn.dataset.id));
+          if (row) openCategoryForm(row);
+        });
+      });
+      wrap.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const count = countByCategory[btn.dataset.id] || 0;
+          const msg = count > 0
+            ? `This category has ${count} item(s) assigned. Deleting it will unassign them (they won't be removed). Continue?`
+            : 'Delete this category?';
+          if (!confirm(msg)) return;
+          btn.disabled = true;
+          try {
+            await adminDeleteCategory(btn.dataset.id);
+            toast('Category deleted.');
+            loadCategoriesManager();
+          } catch (err) {
+            toast(err.message, 'error');
+            btn.disabled = false;
+          }
+        });
+      });
+
+    } catch (err) {
+      wrap.innerHTML = `<p class="loading-msg" style="color:#ef9a9a">${esc(err.message)}</p>`;
+    }
+  }
+
+  // ──────────────────────────────────────
+  // MENU MANAGER  (categories, up to 4 images, variants, stock)
+  // ──────────────────────────────────────
+  let cachedMenuItems  = [];
+  let currentImages    = [];   // array of uploaded URLs for the open form
+  let currentVariants   = [];   // array of { name, price_mod, available }
+
+  document.getElementById('add-item-btn')?.addEventListener('click', async () => { await openMenuForm(null); });
   document.getElementById('cancel-menu-form')?.addEventListener('click', () => {
     document.getElementById('menu-form-panel').style.display = 'none';
   });
+
+  // ── Image dropzone wiring ──
+  const dropzone   = document.getElementById('mi-dropzone');
+  const fileInput  = document.getElementById('mi-images-file');
+
+  dropzone?.addEventListener('click', () => { if (currentImages.length < 4) fileInput.click(); });
+  dropzone?.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone?.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    handleIncomingFiles(e.dataTransfer.files);
+  });
+  fileInput?.addEventListener('change', () => {
+    handleIncomingFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  async function handleIncomingFiles(fileList) {
+    const files = [...(fileList || [])].filter(f => f.type.startsWith('image/'));
+    const room  = 4 - currentImages.length;
+    if (room <= 0) { toast('Maximum of 4 images reached.', 'error'); return; }
+
+    for (const file of files.slice(0, room)) {
+      const placeholderIdx = currentImages.length;
+      currentImages.push({ url: null, uploading: true });
+      renderImagePreviews();
+      try {
+        const url = await uploadImageToCloudinary(file);
+        currentImages[placeholderIdx] = { url, uploading: false };
+      } catch (err) {
+        currentImages.splice(placeholderIdx, 1);
+        toast(err.message || 'Image upload failed.', 'error');
+      }
+      renderImagePreviews();
+    }
+  }
+
+  function renderImagePreviews() {
+    const grid = document.getElementById('mi-images-preview');
+    if (!grid) return;
+    const slots = [];
+    for (let i = 0; i < 4; i++) {
+      const img = currentImages[i];
+      if (!img) { slots.push('<div class="image-slot empty">+</div>'); continue; }
+      if (img.uploading) {
+        slots.push('<div class="image-slot"><span class="img-uploading">Uploading…</span></div>');
+      } else {
+        slots.push(`
+          <div class="image-slot">
+            <img src="${esc(img.url)}" alt="">
+            <button type="button" class="img-remove" data-idx="${i}">✕</button>
+          </div>`);
+      }
+    }
+    grid.innerHTML = slots.join('');
+    grid.querySelectorAll('.img-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentImages.splice(parseInt(btn.dataset.idx), 1);
+        renderImagePreviews();
+      });
+    });
+    dropzone?.classList.toggle('disabled', currentImages.length >= 4);
+  }
+
+  // ── Variant editor wiring ──
+  document.getElementById('mi-add-variant-btn')?.addEventListener('click', () => {
+    currentVariants.push({ name: '', price_mod: 0, available: true });
+    renderVariantRows();
+  });
+
+  function renderVariantRows() {
+    const list = document.getElementById('mi-variants-list');
+    if (!list) return;
+    if (!currentVariants.length) {
+      list.innerHTML = '<p style="font-size:0.72rem;color:var(--text-muted)">No flavors/options yet. Add one if this item has variants (e.g. flavors, sizes).</p>';
+      return;
+    }
+    list.innerHTML = currentVariants.map((v, i) => `
+      <div class="variant-row" data-idx="${i}">
+        <input type="text" class="s-input variant-name" placeholder="e.g. Dark Chocolate" maxlength="100" value="${esc(v.name)}">
+        <input type="number" class="s-input variant-pricemod" placeholder="+/- $" step="0.01" value="${v.price_mod}">
+        <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.7rem;color:var(--text-muted)">
+          <input type="checkbox" class="variant-available" ${v.available !== false ? 'checked' : ''}> Avail.
+        </label>
+        <button type="button" class="variant-remove-btn" data-idx="${i}" title="Remove">✕</button>
+      </div>`).join('');
+
+    list.querySelectorAll('.variant-name').forEach((inp, i) => inp.addEventListener('input', () => { currentVariants[i].name = inp.value; }));
+    list.querySelectorAll('.variant-pricemod').forEach((inp, i) => inp.addEventListener('input', () => { currentVariants[i].price_mod = inp.value; }));
+    list.querySelectorAll('.variant-available').forEach((inp, i) => inp.addEventListener('change', () => { currentVariants[i].available = inp.checked; }));
+    list.querySelectorAll('.variant-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentVariants.splice(parseInt(btn.dataset.idx), 1);
+        renderVariantRows();
+      });
+    });
+  }
 
   document.getElementById('menu-item-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('[type="submit"]');
     btn.disabled = true; btn.textContent = 'SAVING…';
+
+    if (currentImages.some(i => i.uploading)) {
+      toast('Please wait for image uploads to finish.', 'error');
+      btn.disabled = false; btn.textContent = 'SAVE ITEM';
+      return;
+    }
+
     try {
-      const result = await adminUpdateMenu({
+      const catSelect  = document.getElementById('mi-category');
+      const selectedOpt = catSelect.selectedOptions[0];
+      const stockVal = document.getElementById('mi-stock').value;
+
+      const savedItem = await adminUpdateMenu({
         id:          document.getElementById('mi-id').value || null,
         name:        document.getElementById('mi-name').value,
-        category:    document.getElementById('mi-category').value,
+        category_id: catSelect.value || null,
+        category:    selectedOpt?.dataset.slug || 'desserts',
         subcategory: document.getElementById('mi-subcategory').value,
         price:       document.getElementById('mi-price').value,
         description: document.getElementById('mi-description').value,
         available:   document.getElementById('mi-available').value === 'true',
-        image_url:   document.getElementById('mi-image').value || null,
+        images:      currentImages.filter(i => i.url).map(i => i.url),
+        image_url:   currentImages.find(i => i.url)?.url || null,
+        variants:    currentVariants.filter(v => v.name.trim()),
       });
+
+      // Stock is set via the dedicated daily_stock endpoint (null = unlimited).
+      await adminSetDailyStock(savedItem.id, stockVal === '' ? null : stockVal);
+
       document.getElementById('menu-form-panel').style.display = 'none';
       e.target.reset();
-      toast('Menu item saved.');
+      currentImages = [];
+      currentVariants = [];
+      toast('Menu item saved — now live on the storefront.');
       loadMenuItems();
     } catch (err) {
       toast(err.message, 'error');
@@ -669,16 +958,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function openMenuForm(item) {
+  async function populateCategorySelect(selectedId, fallbackSlug) {
+    if (!cachedCategories.length) {
+      try { cachedCategories = await adminFetchCategories() || []; } catch { cachedCategories = []; }
+    }
+    const select = document.getElementById('mi-category');
+    if (!select) return;
+    select.innerHTML = cachedCategories.map(c =>
+      `<option value="${c.id}" data-slug="${esc(c.slug)}">${esc(c.name)}</option>`
+    ).join('') || '<option value="">No categories — create one first</option>';
+
+    if (selectedId && cachedCategories.some(c => c.id === selectedId)) {
+      select.value = selectedId;
+    } else if (fallbackSlug) {
+      const match = cachedCategories.find(c => c.slug === fallbackSlug);
+      if (match) select.value = match.id;
+    }
+  }
+
+  async function openMenuForm(item) {
     document.getElementById('menu-form-title').textContent = item ? 'EDIT MENU ITEM' : 'ADD MENU ITEM';
     document.getElementById('mi-id').value          = item?.id          || '';
     document.getElementById('mi-name').value        = item?.name        || '';
-    document.getElementById('mi-category').value    = item?.category    || 'desserts';
     document.getElementById('mi-subcategory').value = item?.subcategory || '';
     document.getElementById('mi-price').value       = item?.price       || '';
     document.getElementById('mi-description').value = item?.description || '';
     document.getElementById('mi-available').value   = String(item?.available ?? true);
-    document.getElementById('mi-image').value       = item?.image_url   || '';
+    document.getElementById('mi-stock').value       = (item?.daily_stock === null || item?.daily_stock === undefined) ? '' : item.daily_stock;
+
+    await populateCategorySelect(item?.category_id || null, item?.category || null);
+
+    currentImages = (item?.images || [])
+      .slice().sort((a,b) => (a.sort_order||0) - (b.sort_order||0))
+      .slice(0, 4).map(img => ({ url: img.url, uploading: false }));
+    if (!currentImages.length && item?.image_url) currentImages = [{ url: item.image_url, uploading: false }];
+    renderImagePreviews();
+
+    currentVariants = (item?.variants || []).map(v => ({ name: v.name, price_mod: v.price_mod, available: v.available !== false }));
+    renderVariantRows();
+
     document.getElementById('menu-form-panel').style.display = 'block';
     document.getElementById('mi-name').focus();
     document.getElementById('menu-form-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -688,30 +1006,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const wrap = document.getElementById('menu-table-wrap');
     wrap.innerHTML = '<p class="loading-msg">Loading…</p>';
     try {
-      const items = await adminFetchMenuItems();
-      cachedMenuItems = items || [];
-      if (!items?.length) {
+      const [items, cats] = await Promise.all([
+        adminFetchMenuItems(),
+        adminFetchCategories().catch(() => []),
+      ]);
+      cachedMenuItems  = items || [];
+      cachedCategories = cats  || cachedCategories;
+
+      if (!cachedMenuItems.length) {
         wrap.innerHTML = '<p class="empty">No menu items yet. Add your first item above.</p>';
         return;
       }
 
-      // Group by category
-      const cats = ['starters','mains','desserts','drinks'];
+      // Group by category (real categories first, then any legacy/unassigned items).
+      const catMap = {};
+      cachedCategories.forEach(c => { catMap[c.id] = c; });
       const grouped = {};
-      cats.forEach(c => { grouped[c] = []; });
-      items.forEach(i => {
-        const cat = i.category?.toLowerCase() || 'other';
-        if (!grouped[cat]) grouped[cat] = [];
-        grouped[cat].push(i);
+      cachedMenuItems.forEach(i => {
+        const cat = i.category_id && catMap[i.category_id] ? catMap[i.category_id] : null;
+        const key = cat ? cat.id : (i.category || 'uncategorized');
+        (grouped[key] ||= { label: cat ? cat.name : (i.category || 'Uncategorized'), items: [] }).items.push(i);
       });
 
       let html = '';
-      Object.entries(grouped).forEach(([cat, catItems]) => {
+      Object.values(grouped).forEach(({ label, items: catItems }) => {
         if (!catItems.length) return;
         html += `
           <div style="margin-bottom:2rem">
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.8rem">
-              <span style="font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.25em;color:var(--text-muted);text-transform:uppercase">${cat}</span>
+              <span style="font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.25em;color:var(--text-muted);text-transform:uppercase">${esc(label)}</span>
               <div style="flex:1;height:1px;background:var(--border)"></div>
               <span style="font-size:0.65rem;color:var(--text-muted)">${catItems.length} item${catItems.length !== 1 ? 's' : ''}</span>
             </div>
@@ -724,8 +1047,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th>Subcategory</th>
                     <th>Price</th>
                     <th>Stock</th>
+                    <th>Images</th>
+                    <th>Variants</th>
                     <th>Available</th>
-                    <th>Description</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -736,13 +1060,14 @@ document.addEventListener('DOMContentLoaded', () => {
                       <td class="td-name">${esc(item.name)}</td>
                       <td style="color:var(--text-muted);font-size:0.78rem">${esc(item.subcategory || '—')}</td>
                       <td style="color:white;font-weight:600">$${parseFloat(item.price || 0).toFixed(2)}</td>
-                      <td style="color:${item.daily_stock === 0 ? '#ef9a9a' : item.daily_stock <= 5 && item.daily_stock > 0 ? '#ffcc80' : '#a5d6a7'};font-size:0.8rem;font-weight:500">
+                      <td style="color:${item.daily_stock === 0 ? '#ef9a9a' : (item.daily_stock > 0 && item.daily_stock <= 5) ? '#ffcc80' : '#a5d6a7'};font-size:0.8rem;font-weight:500">
                         ${item.daily_stock === null || item.daily_stock === undefined ? '∞' : item.daily_stock}
                       </td>
+                      <td style="font-size:0.78rem;color:var(--text-muted)">${(item.images||[]).length}/4</td>
+                      <td style="font-size:0.78rem;color:var(--text-muted)">${(item.variants||[]).length}</td>
                       <td>${item.available
                         ? '<span style="color:#a5d6a7;font-size:0.8rem;font-weight:600">✓ YES</span>'
                         : '<span style="color:var(--text-muted);font-size:0.8rem">— NO</span>'}</td>
-                      <td class="td-wide" title="${esc(item.description || '')}">${truncate(item.description)}</td>
                       <td style="white-space:nowrap">
                         <button class="tb edit"   data-action="edit"   data-id="${item.id}">Edit</button>
                         <button class="tb danger" data-action="delete" data-id="${item.id}">Delete</button>
@@ -789,19 +1114,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const wrap = document.getElementById('stock-table-wrap');
     wrap.innerHTML = '<p class="loading-msg">Loading stock…</p>';
     try {
-      const items = await adminFetchMenuItems();
+      const [items, cats] = await Promise.all([
+        adminFetchMenuItems(),
+        adminFetchCategories().catch(() => []),
+      ]);
       if (!items?.length) {
         wrap.innerHTML = '<p class="empty">No menu items found. Add items in Menu Manager first.</p>';
         return;
       }
 
-      const cats = ['starters','mains','desserts','drinks'];
+      const catMap = {};
+      (cats || []).forEach(c => { catMap[c.id] = c; });
       const grouped = {};
-      cats.forEach(c => { grouped[c] = []; });
       items.forEach(i => {
-        const cat = i.category?.toLowerCase() || 'other';
-        if (!grouped[cat]) grouped[cat] = [];
-        grouped[cat].push(i);
+        const cat = i.category_id && catMap[i.category_id] ? catMap[i.category_id] : null;
+        const key = cat ? cat.id : (i.category || 'uncategorized');
+        (grouped[key] ||= { label: cat ? cat.name : (i.category || 'Uncategorized'), items: [] }).items.push(i);
       });
 
       // Toolbar
@@ -816,12 +1144,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const stockWrap = wrap.querySelector('#stock-items-wrap');
 
-      Object.entries(grouped).forEach(([cat, catItems]) => {
+      Object.values(grouped).forEach(({ label, items: catItems }) => {
         if (!catItems.length) return;
         let html = `
           <div style="margin-bottom:2rem">
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.8rem">
-              <span style="font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.25em;color:var(--text-muted);text-transform:uppercase">${cat}</span>
+              <span style="font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.25em;color:var(--text-muted);text-transform:uppercase">${esc(label)}</span>
               <div style="flex:1;height:1px;background:var(--border)"></div>
             </div>
             <div class="tbl-wrap">
